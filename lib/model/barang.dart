@@ -10,13 +10,16 @@ class Barang {
   Barang({required this.id, required this.namaBarang, required this.harga, required this.stok, required this.idKategori});
 
   factory Barang.fromSnapshot(DocumentSnapshot snapshot) {
-    print("Parsing: ${snapshot.data()}"); // Debug log
+    final data = snapshot.data() as Map<String, dynamic>;
+    final harga = (data['harga'] ?? 0) as num;
+    final stok = (data['stok'] ?? 0) as num;
+
     return Barang(
       id: snapshot.id,
-      namaBarang: snapshot['nama_barang'],
-      harga: (snapshot['harga'] ?? 0.0) as double, // Handle null
-      stok: (snapshot['stok'] ?? 0) as int,       // Handle null
-      idKategori: snapshot['id_kategori'] as DocumentReference,
+      namaBarang: data['nama_barang'] ?? '',
+      harga: harga.toDouble(),
+      stok: stok.toInt(),
+      idKategori: data['id_kategori'] as DocumentReference,
     );
   }
 
