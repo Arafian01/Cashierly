@@ -4,29 +4,89 @@ import '../model/barang.dart';
 
 class BarangProvider with ChangeNotifier {
   final CollectionReference _barangRef = FirebaseFirestore.instance.collection('barang');
+  String? _errorMessage;
+  String? get errorMessage => _errorMessage;
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
+
+  void _setError(String? error) {
+    _errorMessage = error;
+    notifyListeners();
+  }
+
+  void _setLoading(bool loading) {
+    _isLoading = loading;
+    notifyListeners();
+  }
 
   Stream<List<Barang>> getBarang() {
     return _barangRef.snapshots().map((snapshot) {
-      print("Snapshot data: ${snapshot.docs.length} documents");
-      return snapshot.docs.map((doc) {
-        print("Document ID: ${doc.id}, Data: ${doc.data()}");
-        return Barang.fromSnapshot(doc);
-      }).toList();
+      try {
+        return snapshot.docs.map((doc) {
+          return Barang.fromSnapshot(doc);
+        }).toList();
+      } catch (e) {
+        _setError('Gagal memuat data barang');
+        return <Barang>[];
+      }
     });
   }
 
-  Future<void> addBarang(Barang barang) async {
-    await _barangRef.add(barang.toMap());
-    notifyListeners();
+  Future<bool> addBarang(Barang barang) async {
+    try {
+      _setError(null);
+      _setLoading(true);
+      await _barangRef.add(barang.toMap());
+      _setLoading(false);
+      return true;
+    } on FirebaseException catch (e) {
+      _setLoading(false);
+      _setError('Gagal menambah barang: ${e.message}');
+      return false;
+    } catch (e) {
+      _setLoading(false);
+      _setError('Terjadi kesalahan tidak terduga');
+      return false;
+    }
   }
 
-  Future<void> updateBarang(Barang barang) async {
-    await _barangRef.doc(barang.id).update(barang.toMap());
-    notifyListeners();
+  Future<bool> updateBarang(Barang barang) async {
+    try {
+      _setError(null);
+      _setLoading(true);
+      await _barangRef.doc(barang.id).update(barang.toMap());
+      _setLoading(false);
+      return true;
+    } on FirebaseException catch (e) {
+      _setLoading(false);
+      _setError('Gagal memperbarui barang: ${e.message}');
+      return false;
+    } catch (e) {
+      _setLoading(false);
+      _setError('Terjadi kesalahan tidak terduga');
+      return false;
+    }
   }
 
-  Future<void> deleteBarang(String id) async {
-    await _barangRef.doc(id).delete();
-    notifyListeners();
+  Future<bool> deleteBarang(String id) async {
+    try {
+      _setError(null);
+      _setLoading(true);
+      await _barangRef.doc(id).delete();
+      _setLoading(false);
+      return true;
+    } on FirebaseException catch (e) {
+      _setLoading(false);
+      _setError('Gagal menghapus barang: ${e.message}');
+      return false;
+    } catch (e) {
+      _setLoading(false);
+      _setError('Terjadi kesalahan tidak terduga');
+      return false;
+    }
+  }
+
+  void clearError() {
+    _setError(null);
   }
 }
