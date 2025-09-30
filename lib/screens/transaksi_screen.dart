@@ -5,10 +5,11 @@ import 'package:provider/provider.dart';
 
 import '../model/barang.dart';
 import '../model/transaksi.dart';
-import '../model/detail_transaksi.dart';
 import '../providers/barang_provider.dart';
+import '../providers/cart_provider.dart';
 import '../providers/transaksi_provider.dart';
 import '../widgets/responsive_container.dart';
+import 'cart_screen.dart';
 
 class TransaksiScreen extends StatefulWidget {
   const TransaksiScreen({super.key});
@@ -17,31 +18,63 @@ class TransaksiScreen extends StatefulWidget {
   State<TransaksiScreen> createState() => _TransaksiScreenState();
 }
 
-class _DetailEntry {
-  Barang? barang;
-  int jumlah;
-  double subTotal;
-
-  _DetailEntry()
-      : barang = null,
-        jumlah = 1,
-        subTotal = 0;
-}
-
 class _TransaksiScreenState extends State<TransaksiScreen> {
-  final NumberFormat _currency = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ');
+  final _currency = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ');
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<TransaksiProvider>(
-      builder: (context, transaksiProvider, child) {
+    return Consumer2<BarangProvider, CartProvider>(
+      builder: (context, barangProvider, cartProvider, child) {
         return Scaffold(
-          appBar: AppBar(title: const Text('Transaksi')),
+          appBar: AppBar(
+            title: const Text('Belanja'),
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+            actions: [
+              Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.shopping_cart),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CartScreen()),
+                      );
+                    },
+                  ),
+                  if (cartProvider.totalItems > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.orange,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          '${cartProvider.totalItems}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
           body: ResponsiveContainer(
             child: Column(
               children: [
-                // Error message display
-                if (transaksiProvider.errorMessage != null)
+                if (barangProvider.errorMessage != null)
                   Container(
                     width: double.infinity,
                     margin: const EdgeInsets.only(bottom: 16),
@@ -57,21 +90,21 @@ class _TransaksiScreenState extends State<TransaksiScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            transaksiProvider.errorMessage!,
+                            barangProvider.errorMessage!,
                             style: TextStyle(color: Colors.red.shade700),
                           ),
                         ),
                         IconButton(
                           icon: const Icon(Icons.close),
-                          onPressed: () => transaksiProvider.clearError(),
+                          onPressed: () => barangProvider.clearError(),
                           color: Colors.red.shade700,
                         ),
                       ],
                     ),
                   ),
                 Expanded(
-                  child: StreamBuilder<List<Transaksi>>(
-                    stream: transaksiProvider.getTransaksi(),
+                  child: StreamBuilder<List<Barang>>(
+                    stream: barangProvider.getBarang(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
@@ -87,7 +120,7 @@ class _TransaksiScreenState extends State<TransaksiScreen> {
                               Text('Terjadi kesalahan: ${snapshot.error}'),
                               const SizedBox(height: 16),
                               ElevatedButton(
-                                onPressed: () => transaksiProvider.clearError(),
+                                onPressed: () => barangProvider.clearError(),
                                 child: const Text('Coba Lagi'),
                               ),
                             ],
@@ -95,18 +128,27 @@ class _TransaksiScreenState extends State<TransaksiScreen> {
                         );
                       }
                       
-                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return _buildEmptyState(context);
+                      final barangList = snapshot.data ?? [];
+                      if (barangList.isEmpty) {
+                        return _buildEmptyState();
                       }
 
-                      final transaksiList = snapshot.data!;
-                      return ListView.builder(
-                        shrinkWrap: true,
-                        physics: const BouncingScrollPhysics(),
-                        itemCount: transaksiList.length,
+                      return GridView.builder(
+                        padding: const EdgeInsets.all(16),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.8,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                        ),
+                        itemCount: barangList.length,
                         itemBuilder: (context, index) {
-                          final transaksi = transaksiList[index];
-                          return _buildTransaksiCard(context, transaksi);
+                          final barang = barangList[index];
+                          return _BarangShopCard(
+                            barang: barang,
+                            isInCart: cartProvider.isInCart(barang.id),
+                            onAddToCart: () => cartProvider.addToCart(barang),
+                          );
                         },
                       );
                     },
@@ -115,154 +157,27 @@ class _TransaksiScreenState extends State<TransaksiScreen> {
               ],
             ),
           ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _showCreateTransaksiSheet(context),
-            icon: const Icon(Icons.add),
-            label: const Text('Tambah Transaksi'),
-          ),
         );
       },
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: const [
-        Icon(Icons.receipt_long, size: 96, color: Colors.redAccent),
-        SizedBox(height: 16),
-        Text('Belum ada transaksi', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-        SizedBox(height: 12),
-        Text('Tekan tombol tambah untuk membuat transaksi pertama Anda.', textAlign: TextAlign.center),
-      ],
-    );
-  }
-
-  Widget _buildTransaksiCard(BuildContext context, Transaksi transaksi) {
-    final transaksiProvider = Provider.of<TransaksiProvider>(context, listen: false);
-    final statusColor = transaksi.status.toLowerCase() == 'lunas' ? Colors.green : Colors.orange;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    transaksi.nama,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                  ),
-                ),
-                Chip(
-                  backgroundColor: statusColor.withOpacity(0.12),
-                  labelStyle: TextStyle(color: statusColor, fontWeight: FontWeight.w600),
-                  label: Text(transaksi.status),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 16,
-              runSpacing: 8,
-              children: [
-                _buildInfoTile('Tanggal', DateFormat('dd MMMM yyyy', 'id_ID').format(transaksi.tanggal)),
-                _buildInfoTile('Total', _currency.format(transaksi.total)),
-                _buildInfoTile('Bayar', _currency.format(transaksi.bayar)),
-                _buildInfoTile('Sisa', _currency.format(transaksi.sisa)),
-                if (transaksi.tanggalBayar != null)
-                  _buildInfoTile('Tanggal Bayar', DateFormat('dd MMMM yyyy', 'id_ID').format(transaksi.tanggalBayar!)),
-              ],
-            ),
-            if (transaksi.keterangan != null && transaksi.keterangan!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(transaksi.keterangan!, style: TextStyle(color: Colors.grey[700])),
-            ],
-            const SizedBox(height: 16),
-            ExpansionTile(
-              tilePadding: EdgeInsets.zero,
-              childrenPadding: EdgeInsets.zero,
-              title: const Text('Detail Transaksi', style: TextStyle(fontWeight: FontWeight.w600)),
-              children: [
-                StreamBuilder<List<DetailTransaksi>>(
-                  stream: transaksiProvider.getDetailTransaksi(transaksi.id),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        child: Center(child: CircularProgressIndicator()),
-                      );
-                    }
-                    final details = snapshot.data ?? [];
-                    if (details.isEmpty) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        child: Text('Belum ada detail transaksi.'),
-                      );
-                    }
-                    return Column(
-                      children: details
-                          .map(
-                            (detail) => FutureBuilder<DocumentSnapshot>(
-                              future: detail.idBarang.get(),
-                              builder: (context, barangSnapshot) {
-                                final namaBarang = barangSnapshot.data != null
-                                    ? (barangSnapshot.data!.data() as Map<String, dynamic>)['nama_barang'] ?? 'Barang'
-                                    : 'Memuat...';
-                                return ListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  title: Text(namaBarang),
-                                  subtitle: Text('Jumlah: ${detail.jumlah}\nSubtotal: ${_currency.format(detail.subTotal)}'),
-                                );
-                              },
-                            ),
-                          )
-                          .toList(),
-                    );
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () => _showAddDetailSheet(context, transaksi),
-                  icon: const Icon(Icons.add_circle_outline),
-                  label: const Text('Tambah Detail'),
-                ),
-                FilledButton.icon(
-                  onPressed: () => _showUpdateStatusSheet(transaksi),
-                  icon: const Icon(Icons.payments_rounded),
-                  label: const Text('Atur Pembayaran'),
-                ),
-                TextButton.icon(
-                  onPressed: () => _confirmDeleteTransaksi(transaksi),
-                  icon: const Icon(Icons.delete_outline),
-                  label: const Text('Hapus'),
-                  style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-                ),
-              ],
-            ),
-          ],
-        ),
+  Widget _buildEmptyState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.inventory_2_outlined, size: 96, color: Colors.grey),
+          SizedBox(height: 16),
+          Text('Belum ada barang', 
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)
+          ),
+          SizedBox(height: 12),
+          Text('Belum ada barang tersedia untuk dibeli.', 
+            textAlign: TextAlign.center
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildInfoTile(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(label, style: const TextStyle(color: Colors.black54, fontSize: 12)),
-        const SizedBox(height: 4),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
-      ],
     );
   }
 
@@ -851,6 +766,111 @@ class _TransaksiScreenState extends State<TransaksiScreen> {
   }
 }
 
+class _BarangShopCard extends StatelessWidget {
+  final Barang barang;
+  final bool isInCart;
+  final VoidCallback onAddToCart;
+
+  const _BarangShopCard({
+    required this.barang,
+    required this.isInCart,
+    required this.onAddToCart,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<DocumentSnapshot>(
+      future: barang.idKategori.get(),
+      builder: (context, snapshot) {
+        String kategoriName = 'Loading...';
+        if (snapshot.hasData) {
+          kategoriName = snapshot.data!['nama_kategori'] ?? 'Unknown';
+        }
+
+        return Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        barang.namaBarang,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        kategoriName,
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Rp ${NumberFormat('#,###').format(barang.harga)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Stok: ${barang.stok}',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: barang.stok > 0 && !isInCart ? onAddToCart : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isInCart ? Colors.green : Colors.red,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    child: Text(
+                      barang.stok <= 0
+                          ? 'Stok Habis'
+                          : isInCart
+                              ? 'Sudah di Keranjang'
+                              : 'Tambah ke Keranjang',
+                      style: const TextStyle(fontSize: 12),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _DatePickerField extends StatelessWidget {
   final String label;
   final DateTime selectedDate;
@@ -889,4 +909,10 @@ class _DatePickerField extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DetailEntry {
+  Barang? barang;
+  int jumlah = 1;
+  double subTotal = 0.0;
 }

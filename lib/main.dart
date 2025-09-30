@@ -6,6 +6,7 @@ import 'providers/auth_provider.dart';
 import 'providers/kategori_provider.dart';
 import 'providers/barang_provider.dart';
 import 'providers/transaksi_provider.dart';
+import 'providers/cart_provider.dart';
 import 'firebase_options.dart';
 
 import 'screens/splash_screen.dart';
@@ -35,6 +36,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => KategoriProvider()),
         ChangeNotifierProvider(create: (_) => BarangProvider()),
         ChangeNotifierProvider(create: (_) => TransaksiProvider()),
+        ChangeNotifierProvider(create: (_) => CartProvider()),
       ],
       child: const MyApp(),
     ),
