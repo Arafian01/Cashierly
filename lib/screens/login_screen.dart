@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/app_theme.dart';
+import '../widgets/app_button.dart';
+import '../widgets/app_input.dart';
+import '../widgets/main_navigation.dart';
 import 'register_screen.dart';
-import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,84 +15,171 @@ class LoginScreen extends StatefulWidget {
 }
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  String _email = '';
-  String _password = '';
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Email wajib diisi';
+    }
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+      return 'Format email tidak valid';
+    }
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Password wajib diisi';
+    }
+    if (value.length < 6) {
+      return 'Password minimal 6 karakter';
+    }
+    return null;
+  }
+
+  Future<void> _handleLogin(AuthProvider authProvider) async {
+    if (!_formKey.currentState!.validate()) return;
+    
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final success = await authProvider.login(
+        _emailController.text,
+        _passwordController.text,
+      );
+      
+      if (success && mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const MainNavigation()),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
         return Scaffold(
-          appBar: AppBar(title: const Text('Login')),
-          body: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  // Error message display
-                  if (authProvider.errorMessage != null)
-                    Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.shade200),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: AppSpacing.xxl),
+                    // Header
+                    Text(
+                      'Selamat Datang',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.onSurface,
                       ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.error_outline, color: Colors.red.shade700),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              authProvider.errorMessage!,
-                              style: TextStyle(color: Colors.red.shade700),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'Masuk ke akun Anda untuk melanjutkan',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: AppColors.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxl),
+
+                    // Error message display
+                    if (authProvider.errorMessage != null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: AppColors.errorLight,
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                          border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline, color: AppColors.error),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Text(
+                                authProvider.errorMessage!,
+                                style: const TextStyle(color: AppColors.error),
+                              ),
                             ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () => authProvider.clearError(),
-                            color: Colors.red.shade700,
-                          ),
-                        ],
+                            IconButton(
+                              icon: const Icon(Icons.close, color: AppColors.error),
+                              onPressed: () => authProvider.clearError(),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
+
+                    // Form fields
+                    AppTextFormField(
+                      label: 'Email',
+                      hint: 'Masukkan email Anda',
+                      controller: _emailController,
+                      validator: _validateEmail,
+                      keyboardType: TextInputType.emailAddress,
+                      prefixIcon: Icons.email_outlined,
+                      required: true,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+
+                    AppTextFormField(
+                      label: 'Password',
+                      hint: 'Masukkan password Anda',
+                      controller: _passwordController,
+                      validator: _validatePassword,
+                      obscureText: true,
+                      prefixIcon: Icons.lock_outline,
+                      required: true,
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+
+                    // Login button
+                    AppButton(
+                      text: 'Masuk',
+                      onPressed: _isLoading ? null : () => _handleLogin(authProvider),
+                      isLoading: _isLoading,
+                      fullWidth: true,
+                      size: AppButtonSize.large,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // Register link
+                    Center(
+                      child: TextButton(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                        ),
+                        child: const Text('Belum punya akun? Daftar disini'),
                       ),
                     ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Email'),
-                    validator: (val) => val!.isEmpty ? 'Email wajib diisi' : null,
-                    onChanged: (val) => _email = val,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Password'),
-                    obscureText: true,
-                    validator: (val) => val!.isEmpty ? 'Password wajib diisi' : null,
-                    onChanged: (val) => _password = val,
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        if (_formKey.currentState!.validate()) {
-                          bool success = await authProvider.login(_email, _password);
-                          if (success) {
-                            if (!context.mounted) return;
-                            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
-                          }
-                        }
-                      },
-                      child: const Text('Login'),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
-                    child: const Text('Belum punya akun? Daftar disini'),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

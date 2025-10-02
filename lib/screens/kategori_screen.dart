@@ -4,9 +4,33 @@ import 'package:provider/provider.dart';
 import '../model/kategori.dart';
 import '../providers/kategori_provider.dart';
 import '../widgets/responsive_container.dart';
+import '../widgets/app_theme.dart';
+import '../widgets/app_input.dart';
 
-class KategoriScreen extends StatelessWidget {
+class KategoriScreen extends StatefulWidget {
   const KategoriScreen({super.key});
+
+  @override
+  State<KategoriScreen> createState() => _KategoriScreenState();
+}
+
+class _KategoriScreenState extends State<KategoriScreen> {
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Kategori> _filterKategori(List<Kategori> kategoriList) {
+    if (_searchQuery.isEmpty) return kategoriList;
+    
+    return kategoriList.where((kategori) => 
+      kategori.namaKategori.toLowerCase().contains(_searchQuery.toLowerCase())
+    ).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,31 +41,43 @@ class KategoriScreen extends StatelessWidget {
           body: ResponsiveContainer(
             child: Column(
               children: [
+                // Search bar
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: AppSearchField(
+                    hint: 'Cari kategori...',
+                    controller: _searchController,
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                  ),
+                ),
                 // Error message display
                 if (kategoriProvider.errorMessage != null)
                   Container(
                     width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.red.shade200),
+                      color: AppColors.errorLight,
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      border: Border.all(color: AppColors.error.withOpacity(0.3)),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.error_outline, color: Colors.red.shade700),
-                        const SizedBox(width: 8),
+                        const Icon(Icons.error_outline, color: AppColors.error),
+                        const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Text(
                             kategoriProvider.errorMessage!,
-                            style: TextStyle(color: Colors.red.shade700),
+                            style: const TextStyle(color: AppColors.error),
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close),
+                          icon: const Icon(Icons.close, color: AppColors.error),
                           onPressed: () => kategoriProvider.clearError(),
-                          color: Colors.red.shade700,
                         ),
                       ],
                     ),
@@ -73,30 +109,61 @@ class KategoriScreen extends StatelessWidget {
                       }
 
                       final kategoriList = snapshot.data ?? [];
+                      final filteredList = _filterKategori(kategoriList);
+                      
                       if (kategoriList.isEmpty) {
                         return _EmptyState(onAdd: () => _showKategoriSheet(context));
                       }
+                      
+                      if (filteredList.isEmpty && _searchQuery.isNotEmpty) {
+                        return _NoSearchResults(searchQuery: _searchQuery);
+                      }
 
                       return ListView(
-                        shrinkWrap: true,
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                         children: [
-                          const Text(
-                            'Daftar Kategori',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Daftar Kategori (${filteredList.length})',
+                                style: const TextStyle(
+                                  fontSize: 20, 
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.onSurface,
+                                ),
+                              ),
+                              if (_searchQuery.isNotEmpty)
+                                TextButton(
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() {
+                                      _searchQuery = '';
+                                    });
+                                  },
+                                  child: const Text('Hapus Filter'),
+                                ),
+                            ],
                           ),
-                          const SizedBox(height: 16),
-                          Wrap(
-                            spacing: 16,
-                            runSpacing: 16,
-                            children: kategoriList
-                                .map(
-                                  (kategori) => _KategoriCard(
-                                    kategori: kategori,
-                                    onEdit: () => _showKategoriSheet(context, kategori: kategori),
-                                    onDelete: () => _confirmDelete(context, kategori),
-                                  ),
-                                )
-                                .toList(),
+                          const SizedBox(height: AppSpacing.md),
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 1.2,
+                              crossAxisSpacing: AppSpacing.md,
+                              mainAxisSpacing: AppSpacing.md,
+                            ),
+                            itemCount: filteredList.length,
+                            itemBuilder: (context, index) {
+                              final kategori = filteredList[index];
+                              return _KategoriCard(
+                                kategori: kategori,
+                                onEdit: () => _showKategoriSheet(context, kategori: kategori),
+                                onDelete: () => _confirmDelete(context, kategori),
+                              );
+                            },
                           ),
                           const SizedBox(height: 80),
                         ],
@@ -109,11 +176,13 @@ class KategoriScreen extends StatelessWidget {
           ),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: kategoriProvider.isLoading ? null : () => _showKategoriSheet(context),
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
             icon: kategoriProvider.isLoading 
                 ? const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
                   )
                 : const Icon(Icons.add),
             label: Text(kategoriProvider.isLoading ? 'Memproses...' : 'Tambah Kategori'),
@@ -275,48 +344,77 @@ class _KategoriCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 260,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      kategori.namaKategori,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        boxShadow: AppShadows.light,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: const Icon(
+                    Icons.label_rounded, 
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    kategori.namaKategori,
+                    style: const TextStyle(
+                      fontSize: 16, 
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.onSurface,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onEdit,
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text('Edit'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
+                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
                     ),
                   ),
-                  const Icon(Icons.label_rounded, color: Colors.redAccent),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: onEdit,
-                      icon: const Icon(Icons.edit_outlined),
-                      label: const Text('Edit'),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    label: const Text('Hapus'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: const BorderSide(color: AppColors.error),
+                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextButton.icon(
-                      onPressed: onDelete,
-                      icon: const Icon(Icons.delete_outline),
-                      style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-                      label: const Text('Hapus'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -334,16 +432,53 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.category_outlined, size: 96, color: Colors.redAccent),
-          const SizedBox(height: 16),
-          const Text('Belum ada kategori', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
-          const Text('Tambahkan kategori untuk mulai mengelola barang.', textAlign: TextAlign.center),
-          const SizedBox(height: 24),
+          Icon(Icons.category_outlined, size: 96, color: AppColors.primary.withOpacity(0.5)),
+          const SizedBox(height: AppSpacing.lg),
+          const Text(
+            'Belum ada kategori', 
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const Text(
+            'Tambahkan kategori untuk mulai mengelola barang.', 
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.onSurfaceVariant),
+          ),
+          const SizedBox(height: AppSpacing.xl),
           ElevatedButton.icon(
             onPressed: onAdd,
             icon: const Icon(Icons.add),
             label: const Text('Tambah Kategori'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoSearchResults extends StatelessWidget {
+  final String searchQuery;
+
+  const _NoSearchResults({required this.searchQuery});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 96, color: AppColors.grey400),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            'Tidak ada hasil untuk "$searchQuery"',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const Text(
+            'Coba kata kunci lain atau hapus filter untuk melihat semua kategori.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.onSurfaceVariant),
           ),
         ],
       ),

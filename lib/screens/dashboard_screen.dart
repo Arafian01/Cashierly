@@ -9,6 +9,9 @@ import '../providers/barang_provider.dart';
 import '../providers/kategori_provider.dart';
 import '../providers/transaksi_provider.dart';
 import '../widgets/responsive_container.dart';
+import '../widgets/app_theme.dart';
+import '../widgets/app_card.dart';
+import '../widgets/app_button.dart';
 import 'barang_screen.dart';
 import 'kategori_screen.dart';
 import 'login_screen.dart';
@@ -28,15 +31,18 @@ class DashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Dasbor Inventaris'),
         actions: [
-          IconButton(
-            tooltip: 'Keluar',
-            icon: const Icon(Icons.logout_rounded),
+          AppButton(
+            text: 'Keluar',
+            variant: AppButtonVariant.danger,
+            size: AppButtonSize.small,
+            icon: Icons.logout_rounded,
             onPressed: () async {
               await authProvider.logout();
               if (!context.mounted) return;
               Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
             },
           ),
+          const SizedBox(width: AppSpacing.md),
         ],
       ),
       body: ResponsiveContainer(
@@ -45,30 +51,50 @@ class DashboardScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Selamat datang ',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Selamat datang!',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'Pantau inventaris, kategori, dan transaksi dalam satu tempat dengan tampilan modern.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Pantau inventaris, kategori, dan transaksi dalam satu tempat dengan tampilan modern.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
-              ),
-              const SizedBox(height: 24),
-              Wrap(
-                spacing: 16,
-                runSpacing: 16,
+              const SizedBox(height: AppSpacing.xl),
+              // Statistics Cards
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                childAspectRatio: 1.2,
+                mainAxisSpacing: AppSpacing.md,
+                crossAxisSpacing: AppSpacing.md,
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 children: [
                   StreamBuilder<List<Kategori>>(
                     stream: kategoriProvider.getKategori(),
                     builder: (context, snapshot) {
                       final count = snapshot.data?.length ?? 0;
-                      return _SummaryCard(
+                      return StatCard(
                         title: 'Kategori',
+                        value: count.toString(),
                         icon: Icons.category_rounded,
-                        count: count,
-                        accentColor: Colors.redAccent,
+                        color: AppColors.primary,
                         isLoading: snapshot.connectionState == ConnectionState.waiting,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KategoriScreen())),
                       );
                     },
                   ),
@@ -76,12 +102,13 @@ class DashboardScreen extends StatelessWidget {
                     stream: barangProvider.getBarang(),
                     builder: (context, snapshot) {
                       final count = snapshot.data?.length ?? 0;
-                      return _SummaryCard(
+                      return StatCard(
                         title: 'Barang',
+                        value: count.toString(),
                         icon: Icons.inventory_2_rounded,
-                        count: count,
-                        accentColor: Colors.red,
+                        color: const Color(0xFF10B981), // Green
                         isLoading: snapshot.connectionState == ConnectionState.waiting,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BarangScreen())),
                       );
                     },
                   ),
@@ -89,165 +116,63 @@ class DashboardScreen extends StatelessWidget {
                     stream: transaksiProvider.getTransaksi(),
                     builder: (context, snapshot) {
                       final count = snapshot.data?.length ?? 0;
-                      return _SummaryCard(
+                      return StatCard(
                         title: 'Transaksi',
+                        value: count.toString(),
                         icon: Icons.receipt_long_rounded,
-                        count: count,
-                        accentColor: Colors.deepOrange,
+                        color: const Color(0xFFF59E0B), // Orange
                         isLoading: snapshot.connectionState == ConnectionState.waiting,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransaksiScreen())),
                       );
+                    },
+                  ),
+                  // Add a new card for Cart or Quick Actions
+                  StatCard(
+                    title: 'Aksi Cepat',
+                    value: '★',
+                    icon: Icons.flash_on_rounded,
+                    color: AppColors.error,
+                    onTap: () {
+                      // Show quick actions dialog or navigate to cart
                     },
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
-              Text(
-                'Kelola Modul',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              const SizedBox(height: AppSpacing.xl),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                child: Text(
+                  'Kelola Modul',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.onSurface,
+                  ),
+                ),
               ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                children: [
-                  _NavigationCard(
-                    title: 'Kelola Kategori',
-                    description: 'Tambah, edit, dan hapus kategori barang.',
-                    icon: Icons.category_outlined,
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KategoriScreen())),
-                  ),
-                  _NavigationCard(
-                    title: 'Kelola Barang',
-                    description: 'Atur stok, harga, dan informasi barang.',
-                    icon: Icons.inventory_outlined,
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BarangScreen())),
-                  ),
-                  _NavigationCard(
-                    title: 'Kelola Transaksi',
-                    description: 'Catat penjualan, pembayaran, serta detail barang.',
-                    icon: Icons.point_of_sale_rounded,
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransaksiScreen())),
-                  ),
-                ],
+              const SizedBox(height: AppSpacing.lg),
+              InfoCard(
+                title: 'Kelola Kategori',
+                subtitle: 'Tambah, edit, dan hapus kategori barang.',
+                icon: Icons.category_outlined,
+                iconColor: AppColors.primary,
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KategoriScreen())),
               ),
+              InfoCard(
+                title: 'Kelola Barang',
+                subtitle: 'Atur stok, harga, dan informasi barang.',
+                icon: Icons.inventory_outlined,
+                iconColor: const Color(0xFF10B981),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BarangScreen())),
+              ),
+              InfoCard(
+                title: 'Kelola Transaksi',
+                subtitle: 'Catat penjualan, pembayaran, serta detail barang.',
+                icon: Icons.point_of_sale_rounded,
+                iconColor: const Color(0xFFF59E0B),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransaksiScreen())),
+              ),
+              const SizedBox(height: AppSpacing.xl),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final int count;
-  final Color accentColor;
-  final bool isLoading;
-
-  const _SummaryCard({
-    required this.title,
-    required this.icon,
-    required this.count,
-    required this.accentColor,
-    required this.isLoading,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 240,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: accentColor, size: 28),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 12),
-              isLoading
-                  ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2.4))
-                  : Text(
-                      '$count',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: Colors.black87,
-                          ),
-                    ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavigationCard extends StatelessWidget {
-  final String title;
-  final String description;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _NavigationCard({
-    required this.title,
-    required this.description,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 260,
-      child: Card(
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(icon, color: Colors.redAccent, size: 28),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  description,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
-                    Text('Lihat selengkapnya', style: TextStyle(fontWeight: FontWeight.w600)),
-                    Icon(Icons.arrow_forward_rounded),
-                  ],
-                ),
-              ],
-            ),
           ),
         ),
       ),
