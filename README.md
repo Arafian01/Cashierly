@@ -1,4 +1,4 @@
-# Inventory App
+# Cashierly – Aplikasi Kasir Mobile
 
 Flutter-based inventory management application with Firebase backend and Material 3 UI. Authenticated users can manage product categories, items, and transactions in real time across mobile, web, and desktop targets.
 
