@@ -5,9 +5,9 @@ import '../model/barang.dart';
 import '../model/kategori.dart';
 import '../providers/barang_provider.dart';
 import '../providers/kategori_provider.dart';
-import '../widgets/responsive_container.dart';
 import '../widgets/app_theme.dart';
-import '../widgets/app_input.dart';
+import '../widgets/search_header.dart';
+import '../widgets/filter_modal.dart';
 import 'package:intl/intl.dart';
 
 class BarangScreen extends StatefulWidget {
@@ -49,93 +49,51 @@ class _BarangScreenState extends State<BarangScreen> {
     return filtered;
   }
 
+  void _showFilterModal() {
+    final kategoriProvider = Provider.of<KategoriProvider>(context, listen: false);
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StreamBuilder<List<Kategori>>(
+        stream: kategoriProvider.getKategori(),
+        builder: (context, snapshot) {
+          final categories = snapshot.data ?? [];
+          return FilterModal(
+            categories: categories,
+            selectedCategoryId: _selectedKategoriFilter,
+            onCategorySelected: (categoryId) {
+              setState(() {
+                _selectedKategoriFilter = categoryId;
+              });
+            },
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<BarangProvider>(
       builder: (context, barangProvider, child) {
         return Scaffold(
           appBar: AppBar(title: const Text('Kelola Barang')),
-          body: ResponsiveContainer(
+          body: SafeArea(
             child: Column(
               children: [
-                // Search and Filter Section - Single Row
-                Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Row(
-                    children: [
-                      // Search bar - takes most space
-                      Expanded(
-                        flex: 3,
-                        child: AppSearchField(
-                          hint: 'Cari barang...',
-                          controller: _searchController,
-                          onChanged: (value) {
-                            setState(() {
-                              _searchQuery = value;
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      // Filter button - compact
-                      Expanded(
-                        flex: 2,
-                        child: Consumer<KategoriProvider>(
-                          builder: (context, kategoriProvider, child) {
-                            return StreamBuilder<List<Kategori>>(
-                              stream: kategoriProvider.getKategori(),
-                              builder: (context, snapshot) {
-                                final kategoriList = snapshot.data ?? [];
-                                return Container(
-                                  height: 48,
-                                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.grey50,
-                                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                                    border: Border.all(color: AppColors.grey200),
-                                  ),
-                                  child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
-                                      value: _selectedKategoriFilter,
-                                      hint: Row(
-                                        children: [
-                                          Icon(Icons.filter_list, size: 16, color: AppColors.onSurfaceVariant),
-                                          const SizedBox(width: AppSpacing.xs),
-                                          const Expanded(
-                                            child: Text(
-                                              'Filter',
-                                              style: TextStyle(fontSize: 14),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      isExpanded: true,
-                                      items: [
-                                        const DropdownMenuItem(
-                                          value: 'all',
-                                          child: Text('Semua Kategori'),
-                                        ),
-                                        ...kategoriList.map((kategori) => DropdownMenuItem(
-                                          value: kategori.id,
-                                          child: Text(kategori.namaKategori),
-                                        )),
-                                      ],
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _selectedKategoriFilter = value;
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
+                // New Search Header
+                SearchHeader(
+                  title: 'Daftar Barang',
+                  searchController: _searchController,
+                  onSearchChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
+                  onFilterPressed: _showFilterModal,
+                  hasActiveFilter: _selectedKategoriFilter != null,
                 ),
                 // Error message display
                 if (barangProvider.errorMessage != null)
@@ -166,7 +124,8 @@ class _BarangScreenState extends State<BarangScreen> {
                     ),
                   ),
                 Expanded(
-                  child: StreamBuilder<List<Barang>>(
+                  child: SingleChildScrollView(
+                    child: StreamBuilder<List<Barang>>(
                     stream: barangProvider.getBarang(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
@@ -250,6 +209,7 @@ class _BarangScreenState extends State<BarangScreen> {
                         ],
                       );
                     },
+                    ),
                   ),
                 ),
               ],
