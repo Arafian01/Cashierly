@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'app_theme.dart';
 
@@ -6,7 +7,9 @@ class SearchHeader extends StatefulWidget {
   final TextEditingController searchController;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback? onFilterPressed;
+  final VoidCallback? onCartPressed;
   final bool hasActiveFilter;
+  final int? cartItemCount;
 
   const SearchHeader({
     super.key,
@@ -14,7 +17,9 @@ class SearchHeader extends StatefulWidget {
     required this.searchController,
     required this.onSearchChanged,
     this.onFilterPressed,
+    this.onCartPressed,
     this.hasActiveFilter = false,
+    this.cartItemCount,
   });
 
   @override
@@ -23,6 +28,13 @@ class SearchHeader extends StatefulWidget {
 
 class _SearchHeaderState extends State<SearchHeader> {
   bool _isSearchActive = false;
+  Timer? _debounceTimer;
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
 
   void _toggleSearch() {
     setState(() {
@@ -31,6 +43,13 @@ class _SearchHeaderState extends State<SearchHeader> {
         widget.searchController.clear();
         widget.onSearchChanged('');
       }
+    });
+  }
+
+  void _onSearchChanged(String value) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      widget.onSearchChanged(value);
     });
   }
 
@@ -49,7 +68,7 @@ class _SearchHeaderState extends State<SearchHeader> {
             child: _isSearchActive
                 ? TextField(
                     controller: widget.searchController,
-                    onChanged: widget.onSearchChanged,
+                    onChanged: _onSearchChanged,
                     autofocus: true,
                     decoration: InputDecoration(
                       hintText: 'Cari ${widget.title.toLowerCase()}...',
@@ -121,6 +140,51 @@ class _SearchHeaderState extends State<SearchHeader> {
                   ),
                   tooltip: 'Filter',
                 ),
+              ),
+            ],
+            
+            // Cart Icon (if callback provided)
+            if (widget.onCartPressed != null) ...[
+              const SizedBox(width: AppSpacing.sm),
+              Stack(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.grey100,
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                    ),
+                    child: IconButton(
+                      onPressed: widget.onCartPressed,
+                      icon: const Icon(Icons.shopping_cart, color: AppColors.onSurfaceVariant),
+                      tooltip: 'Keranjang',
+                    ),
+                  ),
+                  if (widget.cartItemCount != null && widget.cartItemCount! > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppColors.error,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          '${widget.cartItemCount}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ],
           ],

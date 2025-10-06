@@ -7,7 +7,7 @@ import '../providers/barang_provider.dart';
 import '../providers/kategori_provider.dart';
 import '../widgets/app_theme.dart';
 import '../widgets/search_header.dart';
-import '../widgets/filter_modal.dart';
+import '../widgets/advanced_filter_modal.dart';
 import 'package:intl/intl.dart';
 
 class BarangScreen extends StatefulWidget {
@@ -21,6 +21,8 @@ class _BarangScreenState extends State<BarangScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   String? _selectedKategoriFilter;
+  SortOption _selectedSort = SortOption.none;
+  StockFilter _selectedStockFilter = StockFilter.all;
   final _currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
   @override
@@ -46,6 +48,45 @@ class _BarangScreenState extends State<BarangScreen> {
       ).toList();
     }
     
+    // Filter by stock status
+    switch (_selectedStockFilter) {
+      case StockFilter.inStock:
+        filtered = filtered.where((barang) => barang.stok > 0).toList();
+        break;
+      case StockFilter.lowStock:
+        filtered = filtered.where((barang) => barang.stok <= 10 && barang.stok > 0).toList();
+        break;
+      case StockFilter.outOfStock:
+        filtered = filtered.where((barang) => barang.stok == 0).toList();
+        break;
+      case StockFilter.all:
+        break;
+    }
+    
+    // Apply sorting
+    switch (_selectedSort) {
+      case SortOption.priceAsc:
+        filtered.sort((a, b) => a.harga.compareTo(b.harga));
+        break;
+      case SortOption.priceDesc:
+        filtered.sort((a, b) => b.harga.compareTo(a.harga));
+        break;
+      case SortOption.nameAsc:
+        filtered.sort((a, b) => a.namaBarang.compareTo(b.namaBarang));
+        break;
+      case SortOption.nameDesc:
+        filtered.sort((a, b) => b.namaBarang.compareTo(a.namaBarang));
+        break;
+      case SortOption.stockAsc:
+        filtered.sort((a, b) => a.stok.compareTo(b.stok));
+        break;
+      case SortOption.stockDesc:
+        filtered.sort((a, b) => b.stok.compareTo(a.stok));
+        break;
+      case SortOption.none:
+        break;
+    }
+    
     return filtered;
   }
 
@@ -60,12 +101,16 @@ class _BarangScreenState extends State<BarangScreen> {
         stream: kategoriProvider.getKategori(),
         builder: (context, snapshot) {
           final categories = snapshot.data ?? [];
-          return FilterModal(
+          return AdvancedFilterModal(
             categories: categories,
             selectedCategoryId: _selectedKategoriFilter,
-            onCategorySelected: (categoryId) {
+            selectedSort: _selectedSort,
+            selectedStockFilter: _selectedStockFilter,
+            onFiltersApplied: (filters) {
               setState(() {
-                _selectedKategoriFilter = categoryId;
+                _selectedKategoriFilter = filters['categoryId'];
+                _selectedSort = filters['sortOption'];
+                _selectedStockFilter = filters['stockFilter'];
               });
             },
           );
@@ -83,7 +128,7 @@ class _BarangScreenState extends State<BarangScreen> {
           body: SafeArea(
             child: Column(
               children: [
-                // New Search Header
+                // Modern Search Header
                 SearchHeader(
                   title: 'Daftar Barang',
                   searchController: _searchController,
@@ -93,7 +138,9 @@ class _BarangScreenState extends State<BarangScreen> {
                     });
                   },
                   onFilterPressed: _showFilterModal,
-                  hasActiveFilter: _selectedKategoriFilter != null,
+                  hasActiveFilter: _selectedKategoriFilter != null || 
+                                 _selectedSort != SortOption.none || 
+                                 _selectedStockFilter != StockFilter.all,
                 ),
                 // Error message display
                 if (barangProvider.errorMessage != null)
@@ -124,92 +171,41 @@ class _BarangScreenState extends State<BarangScreen> {
                     ),
                   ),
                 Expanded(
-                  child: SingleChildScrollView(
-                    child: StreamBuilder<List<Barang>>(
+                  child: StreamBuilder<List<Barang>>(
                     stream: barangProvider.getBarang(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
                       }
 
-                      if (snapshot.hasError) {
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                              const SizedBox(height: 16),
-                              Text('Terjadi kesalahan: ${snapshot.error}'),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: () => barangProvider.clearError(),
-                                child: const Text('Coba Lagi'),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-
                       final barangList = snapshot.data ?? [];
                       final filteredList = _filterBarang(barangList);
                       
                       if (barangList.isEmpty) {
-                        return _EmptyState(onAdd: () => _showBarangDialog(context));
+                        return _buildEmptyState();
                       }
                       
-                      if (filteredList.isEmpty && (_searchQuery.isNotEmpty || _selectedKategoriFilter != null)) {
-                        return _NoSearchResults(
-                          searchQuery: _searchQuery,
-                          hasFilter: _selectedKategoriFilter != null,
-                          onClearFilters: () {
-                            setState(() {
-                              _searchQuery = '';
-                              _selectedKategoriFilter = null;
-                              _searchController.clear();
-                            });
-                          },
-                        );
+                      if (filteredList.isEmpty && _searchQuery.isNotEmpty) {
+                        return _buildNoSearchResults();
                       }
 
-                      return ListView(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Daftar Barang (${filteredList.length})',
-                                style: const TextStyle(
-                                  fontSize: 20, 
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.onSurface,
-                                ),
-                              ),
-                              if (_searchQuery.isNotEmpty || _selectedKategoriFilter != null)
-                                TextButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _searchQuery = '';
-                                      _selectedKategoriFilter = null;
-                                      _searchController.clear();
-                                    });
-                                  },
-                                  child: const Text('Hapus Filter'),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          ...filteredList.map((barang) => _BarangCard(
-                                barang: barang,
-                                onEdit: () => _showBarangDialog(context, barang: barang),
-                                onDelete: () => _confirmDelete(context, barang),
-                                currencyFormatter: _currencyFormatter,
-                              )),
-                          const SizedBox(height: 80),
-                        ],
+                      return ListView.builder(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        itemCount: filteredList.length + 1, // +1 for bottom spacing
+                        itemBuilder: (context, index) {
+                          if (index == filteredList.length) {
+                            return const SizedBox(height: 80); // Bottom spacing for FAB
+                          }
+                          final barang = filteredList[index];
+                          return _BarangCard(
+                            barang: barang,
+                            onEdit: () => _showBarangDialog(context, barang: barang),
+                            onDelete: () => _confirmDelete(context, barang),
+                            currencyFormatter: _currencyFormatter,
+                          );
+                        },
                       );
                     },
-                    ),
                   ),
                 ),
               ],
@@ -230,6 +226,59 @@ class _BarangScreenState extends State<BarangScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.inventory_2_outlined, size: 96, color: AppColors.grey400),
+          const SizedBox(height: AppSpacing.lg),
+          const Text(
+            'Belum ada barang', 
+            style: TextStyle(
+              fontSize: 20, 
+              fontWeight: FontWeight.w600,
+              color: AppColors.onSurface,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const Text(
+            'Tambahkan barang pertama Anda.', 
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoSearchResults() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 96, color: AppColors.grey400),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            'Tidak ada hasil untuk "$_searchQuery"',
+            style: const TextStyle(
+              fontSize: 18, 
+              fontWeight: FontWeight.w600,
+              color: AppColors.onSurface,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const Text(
+            'Coba kata kunci lain untuk mencari barang.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.onSurfaceVariant),
+          ),
+        ],
+      ),
     );
   }
 
@@ -555,88 +604,6 @@ class _BarangCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  final VoidCallback onAdd;
-
-  const _EmptyState({required this.onAdd});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.inventory_2_outlined, size: 96, color: const Color(0xFF10B981).withOpacity(0.5)),
-          const SizedBox(height: AppSpacing.lg),
-          const Text(
-            'Belum ada barang', 
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          const Text(
-            'Tambahkan barang untuk mulai mengelola inventaris.', 
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.onSurfaceVariant),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          ElevatedButton.icon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.add),
-            label: const Text('Tambah Barang'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NoSearchResults extends StatelessWidget {
-  final String searchQuery;
-  final bool hasFilter;
-  final VoidCallback onClearFilters;
-
-  const _NoSearchResults({
-    required this.searchQuery,
-    required this.hasFilter,
-    required this.onClearFilters,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.search_off, size: 96, color: AppColors.grey400),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            searchQuery.isNotEmpty 
-              ? 'Tidak ada hasil untuk "$searchQuery"'
-              : 'Tidak ada barang dengan filter ini',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            hasFilter && searchQuery.isNotEmpty
-              ? 'Coba kata kunci lain atau ubah filter kategori.'
-              : hasFilter
-                ? 'Coba pilih kategori lain atau hapus filter.'
-                : 'Coba kata kunci lain untuk mencari barang.',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.onSurfaceVariant),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          ElevatedButton(
-            onPressed: onClearFilters,
-            child: const Text('Hapus Filter'),
-          ),
-        ],
       ),
     );
   }

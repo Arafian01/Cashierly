@@ -21,6 +21,11 @@ class CartProvider with ChangeNotifier {
     return _cartItems.fold(0, (total, item) => total + item.quantity);
   }
   
+  // Count of unique items (not quantity)
+  int get uniqueItemCount {
+    return _cartItems.length;
+  }
+  
   double get totalAmount {
     return _cartItems.fold(0.0, (total, item) => total + item.subtotal);
   }

@@ -69,51 +69,11 @@ class _TransaksiScreenState extends State<TransaksiScreen> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Belanja'),
-            actions: [
-              Stack(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.shopping_cart),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const CartScreen()),
-                      );
-                    },
-                  ),
-                  if (cartProvider.totalItems > 0)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: AppColors.error,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        child: Text(
-                          '${cartProvider.totalItems}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ],
           ),
           body: SafeArea(
             child: Column(
               children: [
-                // Search Header
+                // Modern Search Header
                 SearchHeader(
                   title: 'Daftar Produk',
                   searchController: _searchController,
@@ -122,6 +82,13 @@ class _TransaksiScreenState extends State<TransaksiScreen> {
                       _searchQuery = value;
                     });
                   },
+                  onCartPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CartScreen()),
+                    );
+                  },
+                  cartItemCount: cartProvider.uniqueItemCount,
                 ),
                 
                 // Error message display

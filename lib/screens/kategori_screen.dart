@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../model/kategori.dart';
 import '../providers/kategori_provider.dart';
-import '../widgets/responsive_container.dart';
 import '../widgets/app_theme.dart';
-import '../widgets/app_input.dart';
+import '../widgets/search_header.dart';
 
 class KategoriScreen extends StatefulWidget {
-  const KategoriScreen({super.key});
+  const KategoriScreen({Key? key}) : super(key: key);
 
   @override
   State<KategoriScreen> createState() => _KategoriScreenState();
@@ -38,47 +36,18 @@ class _KategoriScreenState extends State<KategoriScreen> {
       builder: (context, kategoriProvider, child) {
         return Scaffold(
           appBar: AppBar(title: const Text('Kelola Kategori')),
-          body: ResponsiveContainer(
+          body: SafeArea(
             child: Column(
               children: [
-                // Search bar
-                Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: AppSearchField(
-                          hint: 'Cari kategori...',
-                          controller: _searchController,
-                          onChanged: (value) {
-                            setState(() {
-                              _searchQuery = value;
-                            });
-                          },
-                        ),
-                      ),
-                      if (_searchQuery.isNotEmpty) ...[
-                        const SizedBox(width: AppSpacing.md),
-                        Container(
-                          height: 48,
-                          width: 48,
-                          decoration: BoxDecoration(
-                            color: AppColors.grey100,
-                            borderRadius: BorderRadius.circular(AppRadius.lg),
-                          ),
-                          child: IconButton(
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() {
-                                _searchQuery = '';
-                              });
-                            },
-                            icon: const Icon(Icons.clear, color: AppColors.onSurfaceVariant),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                // Modern Search Header
+                SearchHeader(
+                  title: 'Daftar Kategori',
+                  searchController: _searchController,
+                  onSearchChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
                 ),
                 // Error message display
                 if (kategoriProvider.errorMessage != null)
