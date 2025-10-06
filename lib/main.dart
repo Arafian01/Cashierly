@@ -53,7 +53,6 @@ class MyApp extends StatelessWidget {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: AppColors.primary,
       brightness: Brightness.light,
-    ).copyWith(
       surface: AppColors.surface,
       error: AppColors.error,
       onError: Colors.white,
@@ -61,10 +60,11 @@ class MyApp extends StatelessWidget {
 
     return MaterialApp(
       title: 'Inventory App',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: colorScheme,
-        fontFamily: 'Inter',
+        fontFamily: 'Poppins',
         scaffoldBackgroundColor: AppColors.background,
         appBarTheme: AppBarTheme(
           backgroundColor: colorScheme.primary,

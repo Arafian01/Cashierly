@@ -44,14 +44,40 @@ class _KategoriScreenState extends State<KategoriScreen> {
                 // Search bar
                 Padding(
                   padding: const EdgeInsets.all(AppSpacing.md),
-                  child: AppSearchField(
-                    hint: 'Cari kategori...',
-                    controller: _searchController,
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: AppSearchField(
+                          hint: 'Cari kategori...',
+                          controller: _searchController,
+                          onChanged: (value) {
+                            setState(() {
+                              _searchQuery = value;
+                            });
+                          },
+                        ),
+                      ),
+                      if (_searchQuery.isNotEmpty) ...[
+                        const SizedBox(width: AppSpacing.md),
+                        Container(
+                          height: 48,
+                          width: 48,
+                          decoration: BoxDecoration(
+                            color: AppColors.grey100,
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
+                          ),
+                          child: IconButton(
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {
+                                _searchQuery = '';
+                              });
+                            },
+                            icon: const Icon(Icons.clear, color: AppColors.onSurfaceVariant),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 // Error message display

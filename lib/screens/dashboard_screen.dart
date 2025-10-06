@@ -8,7 +8,6 @@ import '../providers/auth_provider.dart';
 import '../providers/barang_provider.dart';
 import '../providers/kategori_provider.dart';
 import '../providers/transaksi_provider.dart';
-import '../widgets/responsive_container.dart';
 import '../widgets/app_theme.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_button.dart';
@@ -45,14 +44,24 @@ class DashboardScreen extends StatelessWidget {
           const SizedBox(width: AppSpacing.md),
         ],
       ),
-      body: ResponsiveContainer(
+      body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(vertical: 32),
+          padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              // Welcome Section
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(AppRadius.xl),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -60,29 +69,44 @@ class DashboardScreen extends StatelessWidget {
                       'Selamat datang!',
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: AppColors.onSurface,
+                        color: Colors.white,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
-                      'Pantau inventaris, kategori, dan transaksi dalam satu tempat dengan tampilan modern.',
+                      'Pantau inventaris, kategori, dan transaksi dalam satu tempat.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.onSurfaceVariant,
+                        color: Colors.white.withOpacity(0.9),
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: AppSpacing.xl),
-              // Statistics Cards
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                childAspectRatio: 1.2,
-                mainAxisSpacing: AppSpacing.md,
-                crossAxisSpacing: AppSpacing.md,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              
+              // Statistics Section
+              Text(
+                'Statistik',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onSurface,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              
+              // Statistics Cards - Mobile Responsive
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final crossAxisCount = constraints.maxWidth > 600 ? 4 : 2;
+                  final childAspectRatio = constraints.maxWidth > 600 ? 1.3 : 1.1;
+                  
+                  return GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: crossAxisCount,
+                    childAspectRatio: childAspectRatio,
+                    mainAxisSpacing: AppSpacing.md,
+                    crossAxisSpacing: AppSpacing.md,
                 children: [
                   StreamBuilder<List<Kategori>>(
                     stream: kategoriProvider.getKategori(),
@@ -137,19 +161,20 @@ class DashboardScreen extends StatelessWidget {
                     },
                   ),
                 ],
+                  );
+                },
               ),
               const SizedBox(height: AppSpacing.xl),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                child: Text(
-                  'Kelola Modul',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.onSurface,
-                  ),
+              
+              // Quick Actions Section
+              Text(
+                'Kelola Modul',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onSurface,
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
               InfoCard(
                 title: 'Kelola Kategori',
                 subtitle: 'Tambah, edit, dan hapus kategori barang.',

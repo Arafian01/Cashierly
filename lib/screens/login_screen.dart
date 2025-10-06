@@ -164,7 +164,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: _isLoading ? null : () => _handleLogin(authProvider),
                       isLoading: _isLoading,
                       fullWidth: true,
-                      size: AppButtonSize.large,
+                      size: AppButtonSize.medium,
                     ),
                     const SizedBox(height: AppSpacing.lg),
 

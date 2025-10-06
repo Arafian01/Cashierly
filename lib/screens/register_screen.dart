@@ -198,7 +198,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       onPressed: _isLoading ? null : () => _handleRegister(authProvider),
                       isLoading: _isLoading,
                       fullWidth: true,
-                      size: AppButtonSize.large,
+                      size: AppButtonSize.medium,
                     ),
                     const SizedBox(height: AppSpacing.lg),
 
