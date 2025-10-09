@@ -68,14 +68,20 @@ class _TransaksiScreenState extends State<TransaksiScreen> {
       builder: (context, barangProvider, cartProvider, child) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Belanja'),
+            title: const Row(
+              children: [
+                Icon(Icons.shopping_cart, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Shopping'),
+              ],
+            ),
           ),
           body: SafeArea(
             child: Column(
               children: [
                 // Modern Search Header
                 SearchHeader(
-                  title: 'Daftar Produk',
+                  title: 'Available Products',
                   searchController: _searchController,
                   onSearchChanged: (value) {
                     setState(() {
@@ -156,20 +162,16 @@ class _TransaksiScreenState extends State<TransaksiScreen> {
                         return _buildNoSearchResults();
                       }
 
-                      return GridView.builder(
+                      return ListView.builder(
                         padding: const EdgeInsets.all(AppSpacing.md),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.75,
-                          crossAxisSpacing: AppSpacing.md,
-                          mainAxisSpacing: AppSpacing.md,
-                        ),
                         itemCount: filteredList.length,
                         itemBuilder: (context, index) {
                           final barang = filteredList[index];
+                          final isInCart = cartProvider.isInCart(barang.id);
+                          
                           return _BarangShopCard(
                             barang: barang,
-                            isInCart: cartProvider.isInCart(barang.id),
+                            isInCart: isInCart,
                             onAddToCart: () => _addToCart(barang, cartProvider),
                           );
                         },
@@ -845,31 +847,31 @@ class _BarangShopCard extends StatelessWidget {
         }
 
         return Container(
+          margin: const EdgeInsets.only(bottom: AppSpacing.md),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
             boxShadow: AppShadows.light,
+            border: Border.all(color: AppColors.grey200.withOpacity(0.5)),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Row(
               children: [
                 // Product Icon
                 Container(
-                  width: double.infinity,
-                  height: 60,
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   child: const Icon(
-                    Icons.inventory_2_rounded,
-                    color: Color(0xFF10B981),
-                    size: 32,
+                    Icons.shopping_bag,
+                    color: AppColors.primary,
+                    size: 24,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(width: AppSpacing.md),
                 
                 // Product Info
                 Expanded(
@@ -883,7 +885,7 @@ class _BarangShopCard extends StatelessWidget {
                           fontSize: 16,
                           color: AppColors.onSurface,
                         ),
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: AppSpacing.xs),
@@ -891,68 +893,69 @@ class _BarangShopCard extends StatelessWidget {
                         kategoriName,
                         style: const TextStyle(
                           color: AppColors.onSurfaceVariant,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(barang.harga),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                          fontSize: 16,
+                          fontSize: 14,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xs),
-                      
-                      // Stock indicator
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm,
-                          vertical: AppSpacing.xs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: barang.stok > 10 
-                            ? const Color(0xFF10B981).withOpacity(0.1)
-                            : barang.stok > 0
-                              ? const Color(0xFFF59E0B).withOpacity(0.1)
-                              : AppColors.error.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                        ),
-                        child: Text(
-                          'Stok: ${barang.stok}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: barang.stok > 10 
-                              ? const Color(0xFF10B981)
-                              : barang.stok > 0
-                                ? const Color(0xFFF59E0B)
-                                : AppColors.error,
+                      Row(
+                        children: [
+                          Text(
+                            NumberFormat.currency(locale: 'en_US', symbol: '\$', decimalDigits: 2).format(barang.harga),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                              fontSize: 16,
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                              vertical: AppSpacing.xs,
+                            ),
+                            decoration: BoxDecoration(
+                              color: barang.stok > 10 
+                                ? const Color(0xFF10B981).withOpacity(0.1)
+                                : barang.stok > 0
+                                  ? const Color(0xFFF59E0B).withOpacity(0.1)
+                                  : AppColors.error.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(AppRadius.full),
+                            ),
+                            child: Text(
+                              '${barang.stok} left',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: barang.stok > 10 
+                                  ? const Color(0xFF10B981)
+                                  : barang.stok > 0
+                                    ? const Color(0xFFF59E0B)
+                                    : AppColors.error,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.md),
                 
                 // Add to Cart Button
-                SizedBox(
-                  width: double.infinity,
+                Container(
+                  width: 100,
                   child: ElevatedButton(
                     onPressed: barang.stok > 0 ? onAddToCart : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: barang.stok > 0 ? AppColors.primary : AppColors.grey300,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        borderRadius: BorderRadius.circular(AppRadius.full),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
                       elevation: barang.stok > 0 ? 2 : 0,
                     ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           barang.stok <= 0 
@@ -965,8 +968,10 @@ class _BarangShopCard extends StatelessWidget {
                         const SizedBox(width: AppSpacing.xs),
                         Text(
                           barang.stok <= 0
-                              ? 'Stok Habis'
-                              : 'Add to Cart',
+                              ? 'Out'
+                              : isInCart
+                                ? 'Added'
+                                : 'Add',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,

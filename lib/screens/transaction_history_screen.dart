@@ -16,7 +16,7 @@ class TransactionHistoryScreen extends StatefulWidget {
 class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
-  final _currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+  final _currencyFormatter = NumberFormat.currency(locale: 'en_US', symbol: '\$', decimalDigits: 2);
 
   @override
   void dispose() {
@@ -36,11 +36,16 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'lunas':
-        return const Color(0xFF10B981); // Green
+      case 'completed':
+      case 'success':
+        return const Color(0xFF10B981); // Green - Completed
       case 'belum lunas':
-        return const Color(0xFFF59E0B); // Orange
+      case 'pending':
+        return const Color(0xFFF59E0B); // Orange - Pending
       case 'dibatalkan':
-        return AppColors.error; // Red
+      case 'failed':
+      case 'cancelled':
+        return AppColors.error; // Red - Failed/Cancelled
       default:
         return AppColors.onSurfaceVariant;
     }
@@ -49,13 +54,31 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   IconData _getStatusIcon(String status) {
     switch (status.toLowerCase()) {
       case 'lunas':
+      case 'completed':
+      case 'success':
         return Icons.check_circle;
       case 'belum lunas':
+      case 'pending':
         return Icons.schedule;
       case 'dibatalkan':
+      case 'failed':
+      case 'cancelled':
         return Icons.cancel;
       default:
         return Icons.help_outline;
+    }
+  }
+
+  String _getStatusDisplayText(String status) {
+    switch (status.toLowerCase()) {
+      case 'lunas':
+        return 'Completed';
+      case 'belum lunas':
+        return 'Pending';
+      case 'dibatalkan':
+        return 'Failed';
+      default:
+        return status;
     }
   }
 
@@ -65,14 +88,20 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       builder: (context, transaksiProvider, child) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Riwayat Transaksi'),
+            title: const Row(
+              children: [
+                Icon(Icons.receipt_long, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Transaction History'),
+              ],
+            ),
           ),
           body: SafeArea(
             child: Column(
               children: [
                 // Modern Search Header
                 SearchHeader(
-                  title: 'Riwayat Transaksi',
+                  title: 'Recent Transactions',
                   searchController: _searchController,
                   onSearchChanged: (value) {
                     setState(() {
@@ -157,6 +186,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                             currencyFormatter: _currencyFormatter,
                             getStatusColor: _getStatusColor,
                             getStatusIcon: _getStatusIcon,
+                            getStatusDisplayText: _getStatusDisplayText,
                             onTap: () => _showTransactionDetail(transaksi),
                           );
                         },
@@ -245,6 +275,7 @@ class _TransactionCard extends StatelessWidget {
   final NumberFormat currencyFormatter;
   final Color Function(String) getStatusColor;
   final IconData Function(String) getStatusIcon;
+  final String Function(String) getStatusDisplayText;
   final VoidCallback onTap;
 
   const _TransactionCard({
@@ -252,6 +283,7 @@ class _TransactionCard extends StatelessWidget {
     required this.currencyFormatter,
     required this.getStatusColor,
     required this.getStatusIcon,
+    required this.getStatusDisplayText,
     required this.onTap,
   });
 
@@ -290,7 +322,7 @@ class _TransactionCard extends StatelessWidget {
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
-                          DateFormat('dd MMM yyyy, HH:mm', 'id_ID').format(transaksi.tanggal),
+                          DateFormat('dd MMM yyyy, HH:mm', 'en_US').format(transaksi.tanggal),
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.onSurfaceVariant,
@@ -319,7 +351,7 @@ class _TransactionCard extends StatelessWidget {
                         ),
                         const SizedBox(width: AppSpacing.xs),
                         Text(
-                          transaksi.status,
+                          getStatusDisplayText(transaksi.status),
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -363,7 +395,7 @@ class _TransactionCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         const Text(
-                          'Sisa',
+                          'Remaining',
                           style: TextStyle(
                             fontSize: 12,
                             color: AppColors.onSurfaceVariant,

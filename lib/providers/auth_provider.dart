@@ -6,6 +6,7 @@ class AuthProvider with ChangeNotifier {
   User? get user => _auth.currentUser;
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
+  bool get isAuthenticated => _auth.currentUser != null;
 
   AuthProvider() {
     // Listen to auth state changes
@@ -88,5 +89,12 @@ class AuthProvider with ChangeNotifier {
 
   void clearError() {
     _setError(null);
+  }
+
+  Future<void> checkAuthStatus() async {
+    // This method can be used to refresh auth state if needed
+    // For now, it just ensures the current user state is up to date
+    await Future.delayed(const Duration(milliseconds: 100));
+    notifyListeners();
   }
 }

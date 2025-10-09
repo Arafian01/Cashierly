@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/app_theme.dart';
-import '../widgets/app_button.dart';
-import '../widgets/app_input.dart';
 import '../widgets/main_navigation.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -19,6 +17,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController.addListener(() => setState(() {}));
+    _passwordController.addListener(() => setState(() {}));
+    _confirmPasswordController.addListener(() => setState(() {}));
+  }
 
   @override
   void dispose() {
@@ -58,6 +64,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return null;
   }
 
+  bool _isFormValid() {
+    return _emailController.text.isNotEmpty && 
+           _passwordController.text.isNotEmpty &&
+           _confirmPasswordController.text.isNotEmpty &&
+           _validateEmail(_emailController.text) == null &&
+           _validatePassword(_passwordController.text) == null &&
+           _validateConfirmPassword(_confirmPasswordController.text) == null;
+  }
+
   Future<void> _handleRegister(AuthProvider authProvider) async {
     if (!_formKey.currentState!.validate()) return;
     
@@ -91,122 +106,245 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
         return Scaffold(
-          body: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Form(
-                key: _formKey,
+          body: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  AppColors.primary,
+                  AppColors.primary.withOpacity(0.8),
+                  Colors.white,
+                ],
+                stops: const [0.0, 0.3, 1.0],
+              ),
+            ),
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: AppSpacing.xl),
-                    // Back button
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back),
-                      style: IconButton.styleFrom(
-                        backgroundColor: AppColors.grey100,
-                        padding: const EdgeInsets.all(AppSpacing.md),
+                    const SizedBox(height: AppSpacing.lg),
+                    
+                    // Back button and Logo
+                    Row(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.arrow_back, color: Colors.white),
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: const Icon(
+                            Icons.savings,
+                            size: 30,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const Spacer(),
+                        const SizedBox(width: 48), // Balance the back button
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    
+                    const Text(
+                      'Create New Account',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    const Text(
+                      'Join Flutter Savings Bank today',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white70,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     
-                    // Header
-                    Text(
-                      'Buat Akun Baru',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.onSurface,
+                    // Registration Card
+                    Card(
+                      elevation: 20,
+                      shadowColor: Colors.black.withOpacity(0.3),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      'Daftar untuk memulai mengelola inventaris',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppColors.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xxl),
-
-                    // Error message display
-                    if (authProvider.errorMessage != null) ...[
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        decoration: BoxDecoration(
-                          color: AppColors.errorLight,
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.error.withOpacity(0.3)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.error_outline, color: AppColors.error),
-                            const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              child: Text(
-                                authProvider.errorMessage!,
-                                style: const TextStyle(color: AppColors.error),
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.xl),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const Text(
+                                'Create Your Bank Account',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.onSurface,
+                                ),
                               ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.close, color: AppColors.error),
-                              onPressed: () => authProvider.clearError(),
-                            ),
-                          ],
+                              const SizedBox(height: AppSpacing.lg),
+                              
+                              // Error message display
+                              if (authProvider.errorMessage != null) ...[
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(AppSpacing.md),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.errorLight,
+                                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                                    border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.warning, color: AppColors.error),
+                                      const SizedBox(width: AppSpacing.sm),
+                                      Expanded(
+                                        child: Text(
+                                          authProvider.errorMessage!,
+                                          style: const TextStyle(color: AppColors.error),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.lg),
+                              ],
+
+                              // Email field
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: AppColors.grey50,
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                                child: TextFormField(
+                                  controller: _emailController,
+                                  validator: _validateEmail,
+                                  keyboardType: TextInputType.emailAddress,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Email',
+                                    prefixIcon: Icon(Icons.email, color: AppColors.primary),
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.lg),
+
+                              // Password field
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: AppColors.grey50,
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                                child: TextFormField(
+                                  controller: _passwordController,
+                                  validator: _validatePassword,
+                                  obscureText: true,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Password',
+                                    prefixIcon: Icon(Icons.lock, color: AppColors.primary),
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.lg),
+
+                              // Confirm Password field
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: AppColors.grey50,
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                                child: TextFormField(
+                                  controller: _confirmPasswordController,
+                                  validator: _validateConfirmPassword,
+                                  obscureText: true,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Confirm Password',
+                                    prefixIcon: Icon(Icons.lock, color: AppColors.primary),
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.xl),
+
+                              // Register button
+                              Container(
+                                width: double.infinity,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(50),
+                                  gradient: LinearGradient(
+                                    colors: _isLoading || !_isFormValid() 
+                                        ? [AppColors.grey300, AppColors.grey300]
+                                        : [AppColors.primary, AppColors.primaryDark],
+                                  ),
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(50),
+                                    onTap: _isLoading || !_isFormValid() 
+                                        ? null 
+                                        : () => _handleRegister(authProvider),
+                                    child: Center(
+                                      child: _isLoading
+                                          ? const SizedBox(
+                                              width: 24,
+                                              height: 24,
+                                              child: CircularProgressIndicator(
+                                                color: Colors.white,
+                                                strokeWidth: 2,
+                                              ),
+                                            )
+                                          : const Text(
+                                              'Register',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.lg),
+
+                              // Login link
+                              Center(
+                                child: TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text(
+                                    'Already have an account? Sign in',
+                                    style: TextStyle(color: AppColors.primary),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                    ],
-
-                    // Form fields
-                    AppTextFormField(
-                      label: 'Email',
-                      hint: 'Masukkan email Anda',
-                      controller: _emailController,
-                      validator: _validateEmail,
-                      keyboardType: TextInputType.emailAddress,
-                      prefixIcon: Icons.email_outlined,
-                      required: true,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-
-                    AppTextFormField(
-                      label: 'Password',
-                      hint: 'Masukkan password (min. 6 karakter)',
-                      controller: _passwordController,
-                      validator: _validatePassword,
-                      obscureText: true,
-                      prefixIcon: Icons.lock_outline,
-                      required: true,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-
-                    AppTextFormField(
-                      label: 'Konfirmasi Password',
-                      hint: 'Masukkan ulang password Anda',
-                      controller: _confirmPasswordController,
-                      validator: _validateConfirmPassword,
-                      obscureText: true,
-                      prefixIcon: Icons.lock_outline,
-                      required: true,
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-
-                    // Register button
-                    AppButton(
-                      text: 'Daftar',
-                      onPressed: _isLoading ? null : () => _handleRegister(authProvider),
-                      isLoading: _isLoading,
-                      fullWidth: true,
-                      size: AppButtonSize.medium,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-
-                    // Login link
-                    Center(
-                      child: TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Sudah punya akun? Masuk disini'),
                       ),
                     ),
                   ],

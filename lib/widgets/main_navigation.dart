@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../screens/dashboard_screen.dart';
-import '../screens/kategori_screen.dart';
 import '../screens/barang_screen.dart';
 import '../screens/transaksi_screen.dart';
 import 'app_bottom_navigation.dart';
@@ -23,7 +22,6 @@ class _MainNavigationState extends State<MainNavigation> {
 
   final List<Widget> _pages = [
     const DashboardScreen(),
-    const KategoriScreen(),
     const BarangScreen(),
     const TransaksiScreen(),
   ];

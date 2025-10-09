@@ -8,6 +8,7 @@ import '../providers/kategori_provider.dart';
 import '../widgets/app_theme.dart';
 import '../widgets/search_header.dart';
 import '../widgets/advanced_filter_modal.dart';
+import 'edit_barang_screen.dart';
 import 'package:intl/intl.dart';
 
 class BarangScreen extends StatefulWidget {
@@ -124,13 +125,21 @@ class _BarangScreenState extends State<BarangScreen> {
     return Consumer<BarangProvider>(
       builder: (context, barangProvider, child) {
         return Scaffold(
-          appBar: AppBar(title: const Text('Kelola Barang')),
+          appBar: AppBar(
+            title: const Row(
+              children: [
+                Icon(Icons.payments, color: Colors.white),
+                SizedBox(width: 8),
+                Text('My Expenses'),
+              ],
+            ),
+          ),
           body: SafeArea(
             child: Column(
               children: [
                 // Modern Search Header
                 SearchHeader(
-                  title: 'Daftar Barang',
+                  title: 'Expense History',
                   searchController: _searchController,
                   onSearchChanged: (value) {
                     setState(() {
@@ -199,7 +208,14 @@ class _BarangScreenState extends State<BarangScreen> {
                           final barang = filteredList[index];
                           return _BarangCard(
                             barang: barang,
-                            onEdit: () => _showBarangDialog(context, barang: barang),
+                            onEdit: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => EditBarangScreen(barang: barang),
+                                ),
+                              );
+                            },
                             onDelete: () => _confirmDelete(context, barang),
                             currencyFormatter: _currencyFormatter,
                           );
@@ -212,7 +228,14 @@ class _BarangScreenState extends State<BarangScreen> {
             ),
           ),
           floatingActionButton: FloatingActionButton.extended(
-            onPressed: barangProvider.isLoading ? null : () => _showBarangDialog(context),
+            onPressed: barangProvider.isLoading ? null : () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const EditBarangScreen(),
+                ),
+              );
+            },
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             icon: barangProvider.isLoading
@@ -222,7 +245,7 @@ class _BarangScreenState extends State<BarangScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
                   )
                 : const Icon(Icons.add),
-            label: Text(barangProvider.isLoading ? 'Memproses...' : 'Tambah Barang'),
+            label: Text(barangProvider.isLoading ? 'Processing...' : 'Add Expense'),
           ),
         );
       },
@@ -234,10 +257,10 @@ class _BarangScreenState extends State<BarangScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.inventory_2_outlined, size: 96, color: AppColors.grey400),
+          Icon(Icons.payments_outlined, size: 96, color: AppColors.grey400),
           const SizedBox(height: AppSpacing.lg),
           const Text(
-            'Belum ada barang', 
+            'No expenses yet', 
             style: TextStyle(
               fontSize: 20, 
               fontWeight: FontWeight.w600,
@@ -246,7 +269,7 @@ class _BarangScreenState extends State<BarangScreen> {
           ),
           const SizedBox(height: AppSpacing.md),
           const Text(
-            'Tambahkan barang pertama Anda.', 
+            'Start tracking your expenses by adding your first expense.', 
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.onSurfaceVariant),
           ),
@@ -282,139 +305,33 @@ class _BarangScreenState extends State<BarangScreen> {
     );
   }
 
-  void _showBarangDialog(BuildContext context, {Barang? barang}) {
-    final formKey = GlobalKey<FormState>();
-    String namaBarang = barang?.namaBarang ?? '';
-    double harga = barang?.harga ?? 0.0;
-    int stok = barang?.stok ?? 0;
-    String? selectedKategoriId = barang?.idKategori.id;
-    final barangProvider = Provider.of<BarangProvider>(context, listen: false);
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(barang == null ? 'Tambah Barang' : 'Edit Barang'),
-        content: StreamBuilder<List<Kategori>>(
-          stream: Provider.of<KategoriProvider>(context).getKategori(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) return const CircularProgressIndicator();
-            return Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    initialValue: namaBarang,
-                    decoration: const InputDecoration(labelText: 'Nama Barang'),
-                    validator: (val) => val!.isEmpty ? 'Nama barang wajib diisi' : null,
-                    onChanged: (val) => namaBarang = val,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    initialValue: harga.toString() == '0.0' ? '' : harga.toString(),
-                    decoration: const InputDecoration(
-                      labelText: 'Harga',
-                      prefixText: 'Rp ',
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (val) {
-                      if (val!.isEmpty) return 'Harga wajib diisi';
-                      final price = double.tryParse(val);
-                      if (price == null || price <= 0) return 'Harga harus lebih dari 0';
-                      return null;
-                    },
-                    onChanged: (val) => harga = double.tryParse(val) ?? 0.0,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    initialValue: stok.toString() == '0' ? '' : stok.toString(),
-                    decoration: const InputDecoration(
-                      labelText: 'Stok',
-                      suffixText: 'unit',
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (val) {
-                      if (val!.isEmpty) return 'Stok wajib diisi';
-                      final stock = int.tryParse(val);
-                      if (stock == null || stock < 0) return 'Stok tidak boleh negatif';
-                      return null;
-                    },
-                    onChanged: (val) => stok = int.tryParse(val) ?? 0,
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: selectedKategoriId,
-                    decoration: const InputDecoration(labelText: 'Kategori'),
-                    hint: const Text('Pilih Kategori'),
-                    validator: (val) => val == null ? 'Kategori wajib dipilih' : null,
-                    items: snapshot.data!.map((kat) => DropdownMenuItem(value: kat.id, child: Text(kat.namaKategori))).toList(),
-                    onChanged: (val) => selectedKategoriId = val,
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
-          TextButton(
-            onPressed: () async {
-              if (formKey.currentState!.validate()) {
-                final newBarang = Barang(
-                  id: barang?.id ?? '',
-                  namaBarang: namaBarang,
-                  harga: harga,
-                  stok: stok,
-                  idKategori: FirebaseFirestore.instance.collection('kategori').doc(selectedKategoriId),
-                );
-                
-                bool success;
-                if (barang == null) {
-                  success = await barangProvider.addBarang(newBarang);
-                } else {
-                  success = await barangProvider.updateBarang(newBarang);
-                }
-
-                if (!context.mounted) return;
-                
-                if (success) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Barang ${barang == null ? 'ditambahkan' : 'diperbarui'} berhasil.'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(barangProvider.errorMessage ?? 'Terjadi kesalahan'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            child: Text(barang == null ? 'Simpan' : 'Perbarui'),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _confirmDelete(BuildContext context, Barang barang) async {
     final barangProvider = Provider.of<BarangProvider>(context, listen: false);
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Hapus Barang'),
-        content: Text('Anda yakin ingin menghapus barang "${barang.namaBarang}"?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning, color: AppColors.error),
+            SizedBox(width: AppSpacing.sm),
+            Text('Delete Item'),
+          ],
+        ),
+        content: Text('Are you sure you want to delete "${barang.namaBarang}"? This action cannot be undone.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
           TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            child: const Text('Hapus'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -426,16 +343,32 @@ class _BarangScreenState extends State<BarangScreen> {
       
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Barang berhasil dihapus.'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: AppSpacing.sm),
+                Text('${barang.namaBarang} deleted successfully'),
+              ],
+            ),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(barangProvider.errorMessage ?? 'Gagal menghapus barang'),
-            backgroundColor: Colors.red,
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(barangProvider.errorMessage ?? 'Failed to delete item'),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -465,144 +398,135 @@ class _BarangCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.xl),
         boxShadow: AppShadows.light,
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          onTap: onEdit,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.sm),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withOpacity(0.1), // Green for items
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: const Icon(
-                    Icons.inventory_2_rounded, 
-                    color: Color(0xFF10B981),
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        barang.namaBarang,
-                        style: const TextStyle(
-                          fontSize: 18, 
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm,
-                          vertical: AppSpacing.xs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: barang.stok > 10 
-                            ? const Color(0xFF10B981).withOpacity(0.1)
-                            : barang.stok > 0
-                              ? const Color(0xFFF59E0B).withOpacity(0.1)
-                              : AppColors.error.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                        ),
-                        child: Text(
-                          '${barang.stok} unit',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: barang.stok > 10 
-                              ? const Color(0xFF10B981)
-                              : barang.stok > 0
-                                ? const Color(0xFFF59E0B)
-                                : AppColors.error,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-            FutureBuilder<DocumentSnapshot>(
-              future: barang.idKategori.get(),
-              builder: (context, snapshot) {
-                String kategoriName = 'Loading...';
-                if (snapshot.hasData) {
-                  kategoriName = snapshot.data!['nama_kategori'] ?? 'Unknown';
-                }
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.label_outline, size: 16, color: AppColors.onSurfaceVariant),
-                        const SizedBox(width: AppSpacing.xs),
-                        Text(
-                          kategoriName,
-                          style: const TextStyle(
-                            color: AppColors.onSurfaceVariant,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                      child: const Icon(
+                        Icons.monetization_on, 
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Row(
-                      children: [
-                        const Icon(Icons.attach_money, size: 16, color: AppColors.onSurfaceVariant),
-                        const SizedBox(width: AppSpacing.xs),
-                        Text(
-                          currencyFormatter.format(barang.harga),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.onSurface,
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            barang.namaBarang,
+                            style: const TextStyle(
+                              fontSize: 18, 
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.onSurface,
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: AppSpacing.xs),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                              vertical: AppSpacing.xs,
+                            ),
+                            decoration: BoxDecoration(
+                              color: barang.stok > 10 
+                                ? const Color(0xFF10B981).withOpacity(0.1)
+                                : barang.stok > 0
+                                  ? const Color(0xFFF59E0B).withOpacity(0.1)
+                                  : AppColors.error.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                            child: Text(
+                              '${barang.stok} unit',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: barang.stok > 10 
+                                  ? const Color(0xFF10B981)
+                                  : barang.stok > 0
+                                    ? const Color(0xFFF59E0B)
+                                    : AppColors.error,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Delete button
+                    IconButton(
+                      onPressed: onDelete,
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: AppColors.error,
+                        size: 20,
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppColors.error.withOpacity(0.1),
+                        padding: const EdgeInsets.all(8),
+                        minimumSize: const Size(36, 36),
+                      ),
                     ),
                   ],
-                );
-              },
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onEdit,
-                    icon: const Icon(Icons.edit_outlined, size: 16),
-                    label: const Text('Edit'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary),
-                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                    ),
-                  ),
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onDelete,
-                    icon: const Icon(Icons.delete_outline, size: 16),
-                    label: const Text('Hapus'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.error,
-                      side: const BorderSide(color: AppColors.error),
-                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                    ),
-                  ),
+                const SizedBox(height: AppSpacing.md),
+                FutureBuilder<DocumentSnapshot>(
+                  future: barang.idKategori.get(),
+                  builder: (context, snapshot) {
+                    String kategoriName = 'Loading...';
+                    if (snapshot.hasData) {
+                      kategoriName = snapshot.data!['nama_kategori'] ?? 'Unknown';
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.label_outline, size: 16, color: AppColors.onSurfaceVariant),
+                            const SizedBox(width: AppSpacing.xs),
+                            Text(
+                              kategoriName,
+                              style: const TextStyle(
+                                color: AppColors.onSurfaceVariant,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Row(
+                          children: [
+                            const Icon(Icons.attach_money, size: 16, color: AppColors.onSurfaceVariant),
+                            const SizedBox(width: AppSpacing.xs),
+                            Text(
+                              currencyFormatter.format(barang.harga),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );

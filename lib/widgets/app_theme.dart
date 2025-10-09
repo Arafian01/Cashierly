@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Primary colors (Blue scheme)
-  static const Color primary = Color(0xFF2196F3);
-  static const Color primaryLight = Color(0xFF64B5F6);
-  static const Color primaryDark = Color(0xFF1565C0);
+  // Primary colors (Purple scheme - matching Utils.mainThemeColor)
+  static const Color primary = Color(0xFF8700C3);
+  static const Color primaryLight = Color(0xFFA855F7);
+  static const Color primaryDark = Color(0xFF6B21A8);
   
   // Dangerous action colors (Red scheme)
   static const Color error = Color(0xFFE53E3E);

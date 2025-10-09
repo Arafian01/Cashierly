@@ -3,7 +3,6 @@ import 'app_theme.dart';
 
 enum BottomNavItem {
   dashboard,
-  kategori,
   barang,
   transaksi,
 }
@@ -45,12 +44,6 @@ class AppBottomNavigation extends StatelessWidget {
                 label: 'Dashboard',
                 isActive: currentItem == BottomNavItem.dashboard,
                 onTap: () => onItemTapped(BottomNavItem.dashboard),
-              ),
-              _NavItem(
-                icon: Icons.category_rounded,
-                label: 'Kategori',
-                isActive: currentItem == BottomNavItem.kategori,
-                onTap: () => onItemTapped(BottomNavItem.kategori),
               ),
               _NavItem(
                 icon: Icons.inventory_2_rounded,
