@@ -237,13 +237,20 @@ class _KategoriScreenState extends State<KategoriScreen> {
                       onPressed: () async {
                         if (!formKey.currentState!.validate()) return;
 
-                        final newKategori = Kategori(id: kategori?.id ?? '', namaKategori: controller.text.trim());
                         bool success;
                         
                         if (kategori == null) {
-                          success = await kategoriProvider.addKategori(newKategori);
+                          success = await kategoriProvider.addKategori(
+                            namaKategori: controller.text.trim(),
+                            deskripsi: null, // Add deskripsi field to form if needed
+                          );
                         } else {
-                          success = await kategoriProvider.updateKategori(newKategori);
+                          final updatedKategori = Kategori(
+                            id: kategori!.id, 
+                            namaKategori: controller.text.trim(),
+                            deskripsi: kategori!.deskripsi,
+                          );
+                          success = await kategoriProvider.updateKategori(updatedKategori);
                         }
 
                         if (!context.mounted) return;

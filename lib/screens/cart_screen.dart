@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/cart_provider.dart';
 import '../providers/transaksi_provider.dart';
-import '../model/transaksi.dart';
 import '../widgets/responsive_container.dart';
 import 'package:intl/intl.dart';
 
@@ -33,10 +31,10 @@ class CartScreen extends StatelessWidget {
                       return _CartItemCard(
                         cartItem: cartItem,
                         onQuantityChanged: (quantity) {
-                          cartProvider.updateQuantity(cartItem.barang.id, quantity);
+                          cartProvider.updateQuantity(cartItem.barangSatuan.id, quantity);
                         },
                         onRemove: () {
-                          cartProvider.removeFromCart(cartItem.barang.id);
+                          cartProvider.removeFromCart(cartItem.barangSatuan.id);
                         },
                       );
                     },
@@ -139,31 +137,22 @@ class CartScreen extends StatelessWidget {
     final transaksiProvider = Provider.of<TransaksiProvider>(context, listen: false);
 
     try {
-      // Create transaction
-      final transaksi = Transaksi(
-        id: '',
-        nama: 'Transaksi-${DateTime.now().millisecondsSinceEpoch}',
-        tanggal: DateTime.now(),
-        total: cartProvider.totalAmount,
-        bayar: 0,
-        sisa: cartProvider.totalAmount,
-        status: 'pending',
-      );
-
-      // Create detail items
+      // Create detail items using the new structure
       final detailItems = cartProvider.cartItems.map((cartItem) {
         return DetailTransaksiForm(
-          idBarang: FirebaseFirestore.instance.collection('barang').doc(cartItem.barang.id),
+          idBarangSatuan: cartItem.barangSatuan.id,
           jumlah: cartItem.quantity,
-          subTotal: cartItem.subtotal,
         );
       }).toList();
 
-      // Save to database
-      await transaksiProvider.createTransaksiWithDetails(
-        transaksi: transaksi,
+      // Save to database using the new method
+      String? transaksiId = await transaksiProvider.createCompleteTransaction(
         detailItems: detailItems,
       );
+      
+      if (transaksiId == null) {
+        throw Exception('Gagal membuat transaksi');
+      }
 
       // Clear cart
       cartProvider.clearCart();
@@ -219,7 +208,7 @@ class _CartItemCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    cartItem.barang.namaBarang,
+                    cartItem.barang?.namaBarang ?? cartItem.barangSatuan.namaSatuan,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -227,7 +216,7 @@ class _CartItemCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Rp ${NumberFormat('#,###').format(cartItem.barang.harga)}',
+                    '${cartItem.barangSatuan.namaSatuan} - Rp ${NumberFormat('#,###').format(cartItem.barangSatuan.hargaJual)}',
                     style: TextStyle(
                       color: Colors.grey[600],
                       fontSize: 14,
@@ -275,7 +264,7 @@ class _CartItemCard extends StatelessWidget {
                     ),
                     IconButton(
                       onPressed: () {
-                        if (cartItem.quantity < cartItem.barang.stok) {
+                        if (cartItem.quantity < cartItem.barangSatuan.stokSatuan) {
                           onQuantityChanged(cartItem.quantity + 1);
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(

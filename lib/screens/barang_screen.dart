@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../model/barang.dart';
@@ -26,6 +25,18 @@ class _BarangScreenState extends State<BarangScreen> {
   StockFilter _selectedStockFilter = StockFilter.all;
   final _currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
+  Future<Kategori?> _getKategoriById(String kategoriId) async {
+    // Use provider to get kategori stream and find by ID
+    try {
+      final kategoriProvider = Provider.of<KategoriProvider>(context, listen: false);
+      final kategoriStream = kategoriProvider.getKategori();
+      final kategoriList = await kategoriStream.first;
+      return kategoriList.firstWhere((k) => k.id == kategoriId);
+    } catch (e) {
+      return null;
+    }
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -45,20 +56,23 @@ class _BarangScreenState extends State<BarangScreen> {
     // Filter by category
     if (_selectedKategoriFilter != null && _selectedKategoriFilter != 'all') {
       filtered = filtered.where((barang) => 
-        barang.idKategori.id == _selectedKategoriFilter
+        barang.idKategori == _selectedKategoriFilter
       ).toList();
     }
     
     // Filter by stock status
     switch (_selectedStockFilter) {
       case StockFilter.inStock:
-        filtered = filtered.where((barang) => barang.stok > 0).toList();
+        // TODO: Implement stock filter using barang_satuan
+        // filtered = filtered.where((barang) => barang.stokTotal > 0).toList();
         break;
       case StockFilter.lowStock:
-        filtered = filtered.where((barang) => barang.stok <= 10 && barang.stok > 0).toList();
+        // TODO: Implement low stock filter using barang_satuan
+        // filtered = filtered.where((barang) => barang.stokTotal <= 10 && barang.stokTotal > 0).toList();
         break;
       case StockFilter.outOfStock:
-        filtered = filtered.where((barang) => barang.stok == 0).toList();
+        // TODO: Implement out of stock filter using barang_satuan
+        // filtered = filtered.where((barang) => barang.stokTotal == 0).toList();
         break;
       case StockFilter.all:
         break;
@@ -67,10 +81,12 @@ class _BarangScreenState extends State<BarangScreen> {
     // Apply sorting
     switch (_selectedSort) {
       case SortOption.priceAsc:
-        filtered.sort((a, b) => a.harga.compareTo(b.harga));
+        // TODO: Implement price sorting using barang_satuan
+        // filtered.sort((a, b) => a.harga.compareTo(b.harga));
         break;
       case SortOption.priceDesc:
-        filtered.sort((a, b) => b.harga.compareTo(a.harga));
+        // TODO: Implement price sorting using barang_satuan
+        // filtered.sort((a, b) => b.harga.compareTo(a.harga));
         break;
       case SortOption.nameAsc:
         filtered.sort((a, b) => a.namaBarang.compareTo(b.namaBarang));
@@ -79,10 +95,10 @@ class _BarangScreenState extends State<BarangScreen> {
         filtered.sort((a, b) => b.namaBarang.compareTo(a.namaBarang));
         break;
       case SortOption.stockAsc:
-        filtered.sort((a, b) => a.stok.compareTo(b.stok));
+        filtered.sort((a, b) => a.stokTotal.compareTo(b.stokTotal));
         break;
       case SortOption.stockDesc:
-        filtered.sort((a, b) => b.stok.compareTo(a.stok));
+        filtered.sort((a, b) => b.stokTotal.compareTo(a.stokTotal));
         break;
       case SortOption.none:
         break;
@@ -218,6 +234,7 @@ class _BarangScreenState extends State<BarangScreen> {
                             },
                             onDelete: () => _confirmDelete(context, barang),
                             currencyFormatter: _currencyFormatter,
+                            getKategoriById: _getKategoriById,
                           );
                         },
                       );
@@ -381,12 +398,14 @@ class _BarangCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final NumberFormat currencyFormatter;
+  final Future<Kategori?> Function(String) getKategoriById;
 
   const _BarangCard({
     required this.barang,
     required this.onEdit,
     required this.onDelete,
     required this.currencyFormatter,
+    required this.getKategoriById,
   });
 
   @override
@@ -442,21 +461,21 @@ class _BarangCard extends StatelessWidget {
                               vertical: AppSpacing.xs,
                             ),
                             decoration: BoxDecoration(
-                              color: barang.stok > 10 
+                              color: barang.stokTotal > 10 
                                 ? const Color(0xFF10B981).withOpacity(0.1)
-                                : barang.stok > 0
+                                : barang.stokTotal > 0
                                   ? const Color(0xFFF59E0B).withOpacity(0.1)
                                   : AppColors.error.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(AppRadius.sm),
                             ),
                             child: Text(
-                              '${barang.stok} unit',
+                              '${barang.stokTotal} unit',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: barang.stok > 10 
+                                color: barang.stokTotal > 10 
                                   ? const Color(0xFF10B981)
-                                  : barang.stok > 0
+                                  : barang.stokTotal > 0
                                     ? const Color(0xFFF59E0B)
                                     : AppColors.error,
                               ),
@@ -482,12 +501,14 @@ class _BarangCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
-                FutureBuilder<DocumentSnapshot>(
-                  future: barang.idKategori.get(),
+                FutureBuilder<Kategori?>(
+                  future: getKategoriById(barang.idKategori),
                   builder: (context, snapshot) {
                     String kategoriName = 'Loading...';
-                    if (snapshot.hasData) {
-                      kategoriName = snapshot.data!['nama_kategori'] ?? 'Unknown';
+                    if (snapshot.hasData && snapshot.data != null) {
+                      kategoriName = snapshot.data!.namaKategori;
+                    } else if (snapshot.hasError) {
+                      kategoriName = 'Unknown';
                     }
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -511,7 +532,7 @@ class _BarangCard extends StatelessWidget {
                             const Icon(Icons.attach_money, size: 16, color: AppColors.onSurfaceVariant),
                             const SizedBox(width: AppSpacing.xs),
                             Text(
-                              currencyFormatter.format(barang.harga),
+                              'Multiple Units', // TODO: Show actual pricing from barang_satuan
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,

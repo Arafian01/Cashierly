@@ -28,8 +28,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     if (_searchQuery.isEmpty) return transaksiList;
     
     return transaksiList.where((transaksi) => 
-      transaksi.nama.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-      transaksi.status.toLowerCase().contains(_searchQuery.toLowerCase())
+      transaksi.kodeTransaksi.toLowerCase().contains(_searchQuery.toLowerCase())
     ).toList();
   }
 
@@ -313,7 +312,7 @@ class _TransactionCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          transaksi.nama,
+                          transaksi.kodeTransaksi,
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -322,7 +321,7 @@ class _TransactionCard extends StatelessWidget {
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
-                          DateFormat('dd MMM yyyy, HH:mm', 'en_US').format(transaksi.tanggal),
+                          DateFormat('dd MMM yyyy, HH:mm', 'en_US').format(transaksi.tanggalTransaksi),
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.onSurfaceVariant,
@@ -338,24 +337,24 @@ class _TransactionCard extends StatelessWidget {
                       vertical: AppSpacing.xs,
                     ),
                     decoration: BoxDecoration(
-                      color: getStatusColor(transaksi.status).withOpacity(0.1),
+                      color: getStatusColor('Completed').withOpacity(0.1),
                       borderRadius: BorderRadius.circular(AppRadius.full),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          getStatusIcon(transaksi.status),
+                          getStatusIcon('Completed'),
                           size: 14,
-                          color: getStatusColor(transaksi.status),
+                          color: getStatusColor('Completed'),
                         ),
                         const SizedBox(width: AppSpacing.xs),
                         Text(
-                          getStatusDisplayText(transaksi.status),
+                          getStatusDisplayText('Completed'),
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: getStatusColor(transaksi.status),
+                            color: getStatusColor('Completed'),
                           ),
                         ),
                       ],
@@ -381,7 +380,7 @@ class _TransactionCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        currencyFormatter.format(transaksi.total),
+                        currencyFormatter.format(transaksi.totalHarga),
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -402,7 +401,7 @@ class _TransactionCard extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          currencyFormatter.format(transaksi.sisa),
+                          'Rp 0',
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -517,8 +516,8 @@ class _TransactionDetailModal extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Customer Info
-                  _buildDetailRow('Nama Pelanggan', transaksi.nama),
-                  _buildDetailRow('Tanggal Transaksi', DateFormat('dd MMMM yyyy, HH:mm', 'id_ID').format(transaksi.tanggal)),
+                  _buildDetailRow('Kode Transaksi', transaksi.kodeTransaksi),
+                  _buildDetailRow('Tanggal Transaksi', DateFormat('dd MMMM yyyy, HH:mm', 'id_ID').format(transaksi.tanggalTransaksi)),
                   
                   // Status
                   Row(
@@ -537,24 +536,24 @@ class _TransactionDetailModal extends StatelessWidget {
                           vertical: AppSpacing.xs,
                         ),
                         decoration: BoxDecoration(
-                          color: getStatusColor(transaksi.status).withOpacity(0.1),
+                          color: getStatusColor('Completed').withOpacity(0.1),
                           borderRadius: BorderRadius.circular(AppRadius.full),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              getStatusIcon(transaksi.status),
+                              getStatusIcon('Completed'),
                               size: 16,
-                              color: getStatusColor(transaksi.status),
+                              color: getStatusColor('Completed'),
                             ),
                             const SizedBox(width: AppSpacing.xs),
                             Text(
-                              transaksi.status,
+                              'Completed',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: getStatusColor(transaksi.status),
+                                color: getStatusColor('Completed'),
                               ),
                             ),
                           ],

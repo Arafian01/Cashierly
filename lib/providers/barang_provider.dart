@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../model/barang.dart';
+import '../services/firestore_service.dart';
 
 class BarangProvider with ChangeNotifier {
-  final CollectionReference _barangRef = FirebaseFirestore.instance.collection('barang');
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
   bool _isLoading = false;
@@ -20,23 +20,43 @@ class BarangProvider with ChangeNotifier {
   }
 
   Stream<List<Barang>> getBarang() {
-    return _barangRef.snapshots().map((snapshot) {
-      try {
-        return snapshot.docs.map((doc) {
-          return Barang.fromSnapshot(doc);
-        }).toList();
-      } catch (e) {
-        _setError('Gagal memuat data barang');
-        return <Barang>[];
-      }
-    });
+    try {
+      return FirestoreService.getBarangStream();
+    } catch (e) {
+      _setError('Gagal memuat data barang');
+      return Stream.value(<Barang>[]);
+    }
   }
 
-  Future<bool> addBarang(Barang barang) async {
+  Stream<List<Barang>> getBarangByKategori(String idKategori) {
+    try {
+      return FirestoreService.getBarangByKategoriStream(idKategori);
+    } catch (e) {
+      _setError('Gagal memuat data barang berdasarkan kategori');
+      return Stream.value(<Barang>[]);
+    }
+  }
+
+  Future<bool> addBarang({
+    required String idKategori,
+    required String namaBarang,
+    required int stokTotal,
+  }) async {
     try {
       _setError(null);
       _setLoading(true);
-      await _barangRef.add(barang.toMap());
+      
+      String kodeBarang = await FirestoreService.generateKodeBarang(idKategori);
+      
+      Barang barang = Barang(
+        id: '',
+        idKategori: idKategori,
+        kodeBarang: kodeBarang,
+        namaBarang: namaBarang,
+        stokTotal: stokTotal,
+      );
+      
+      await FirestoreService.addBarang(barang);
       _setLoading(false);
       return true;
     } on FirebaseException catch (e) {
@@ -45,7 +65,7 @@ class BarangProvider with ChangeNotifier {
       return false;
     } catch (e) {
       _setLoading(false);
-      _setError('Terjadi kesalahan tidak terduga');
+      _setError('Terjadi kesalahan tidak terduga: $e');
       return false;
     }
   }
@@ -54,7 +74,7 @@ class BarangProvider with ChangeNotifier {
     try {
       _setError(null);
       _setLoading(true);
-      await _barangRef.doc(barang.id).update(barang.toMap());
+      await FirestoreService.updateBarang(barang);
       _setLoading(false);
       return true;
     } on FirebaseException catch (e) {
@@ -63,7 +83,7 @@ class BarangProvider with ChangeNotifier {
       return false;
     } catch (e) {
       _setLoading(false);
-      _setError('Terjadi kesalahan tidak terduga');
+      _setError('Terjadi kesalahan tidak terduga: $e');
       return false;
     }
   }
@@ -72,7 +92,7 @@ class BarangProvider with ChangeNotifier {
     try {
       _setError(null);
       _setLoading(true);
-      await _barangRef.doc(id).delete();
+      await FirestoreService.deleteBarang(id);
       _setLoading(false);
       return true;
     } on FirebaseException catch (e) {
@@ -81,8 +101,17 @@ class BarangProvider with ChangeNotifier {
       return false;
     } catch (e) {
       _setLoading(false);
-      _setError('Terjadi kesalahan tidak terduga');
+      _setError('Terjadi kesalahan tidak terduga: $e');
       return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getCompleteBarangData(String idBarang) async {
+    try {
+      return await FirestoreService.getCompleteBarangData(idBarang);
+    } catch (e) {
+      _setError('Gagal memuat data lengkap barang: $e');
+      return null;
     }
   }
 

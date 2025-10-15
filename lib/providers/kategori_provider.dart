@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../model/kategori.dart';
+import '../services/firestore_service.dart';
 
 class KategoriProvider with ChangeNotifier {
-  final CollectionReference _kategoriRef = FirebaseFirestore.instance.collection('kategori');
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
   bool _isLoading = false;
@@ -20,21 +20,29 @@ class KategoriProvider with ChangeNotifier {
   }
 
   Stream<List<Kategori>> getKategori() {
-    return _kategoriRef.snapshots().map((snapshot) {
-      try {
-        return snapshot.docs.map((doc) => Kategori.fromSnapshot(doc)).toList();
-      } catch (e) {
-        _setError('Gagal memuat data kategori');
-        return <Kategori>[];
-      }
-    });
+    try {
+      return FirestoreService.getKategoriStream();
+    } catch (e) {
+      _setError('Gagal memuat data kategori');
+      return Stream.value(<Kategori>[]);
+    }
   }
 
-  Future<bool> addKategori(Kategori kategori) async {
+  Future<bool> addKategori({
+    required String namaKategori,
+    String? deskripsi,
+  }) async {
     try {
       _setError(null);
       _setLoading(true);
-      await _kategoriRef.add(kategori.toMap());
+      
+      Kategori kategori = Kategori(
+        id: '',
+        namaKategori: namaKategori,
+        deskripsi: deskripsi,
+      );
+      
+      await FirestoreService.addKategori(kategori);
       _setLoading(false);
       return true;
     } on FirebaseException catch (e) {
@@ -43,7 +51,7 @@ class KategoriProvider with ChangeNotifier {
       return false;
     } catch (e) {
       _setLoading(false);
-      _setError('Terjadi kesalahan tidak terduga');
+      _setError('Terjadi kesalahan tidak terduga: $e');
       return false;
     }
   }
@@ -52,7 +60,7 @@ class KategoriProvider with ChangeNotifier {
     try {
       _setError(null);
       _setLoading(true);
-      await _kategoriRef.doc(kategori.id).update(kategori.toMap());
+      await FirestoreService.updateKategori(kategori);
       _setLoading(false);
       return true;
     } on FirebaseException catch (e) {
@@ -61,7 +69,7 @@ class KategoriProvider with ChangeNotifier {
       return false;
     } catch (e) {
       _setLoading(false);
-      _setError('Terjadi kesalahan tidak terduga');
+      _setError('Terjadi kesalahan tidak terduga: $e');
       return false;
     }
   }
@@ -70,7 +78,7 @@ class KategoriProvider with ChangeNotifier {
     try {
       _setError(null);
       _setLoading(true);
-      await _kategoriRef.doc(id).delete();
+      await FirestoreService.deleteKategori(id);
       _setLoading(false);
       return true;
     } on FirebaseException catch (e) {
@@ -79,7 +87,7 @@ class KategoriProvider with ChangeNotifier {
       return false;
     } catch (e) {
       _setLoading(false);
-      _setError('Terjadi kesalahan tidak terduga');
+      _setError('Terjadi kesalahan tidak terduga: $e');
       return false;
     }
   }

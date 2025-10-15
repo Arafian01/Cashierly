@@ -159,7 +159,7 @@ class DashboardScreen extends StatelessWidget {
     for (var barang in barangList) {
       // We'll need to get the category name from the reference
       // For now, we'll use a placeholder approach
-      String categoryKey = barang.idKategori.id;
+      String categoryKey = barang.idKategori;
       if (!groupedByCategory.containsKey(categoryKey)) {
         groupedByCategory[categoryKey] = [];
       }

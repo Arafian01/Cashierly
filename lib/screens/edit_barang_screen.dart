@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../model/barang.dart';
+import '../model/barang_satuan.dart';
 import '../model/kategori.dart';
 import '../providers/barang_provider.dart';
+import '../providers/barang_satuan_provider.dart';
 import '../providers/kategori_provider.dart';
 import '../widgets/app_theme.dart';
 import '../widgets/app_button.dart';
@@ -24,30 +25,42 @@ class EditBarangScreen extends StatefulWidget {
 class _EditBarangScreenState extends State<EditBarangScreen> {
   final _formKey = GlobalKey<FormState>();
   final _namaController = TextEditingController();
-  final _hargaController = TextEditingController();
-  final _stokController = TextEditingController();
+  final _kodeController = TextEditingController();
+  final _stokTotalController = TextEditingController();
+  
+  // Barang Satuan fields
+  final _namaSatuanController = TextEditingController();
+  final _hargaJualController = TextEditingController();
+  final _stokSatuanController = TextEditingController();
   
   String? _selectedKategoriId;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _isEditMode = false;
 
   @override
   void initState() {
     super.initState();
-    if (widget.barang != null) {
+    _isEditMode = widget.barang != null;
+    if (_isEditMode) {
       // Edit mode - populate fields
       _namaController.text = widget.barang!.namaBarang;
-      _hargaController.text = widget.barang!.harga.toString();
-      _stokController.text = widget.barang!.stok.toString();
-      _selectedKategoriId = widget.barang!.idKategori.id;
+      _kodeController.text = widget.barang!.kodeBarang;
+      _stokTotalController.text = widget.barang!.stokTotal.toString();
+      _selectedKategoriId = widget.barang!.idKategori;
+      
+      // Note: In edit mode, barang_satuan will be managed separately
     }
   }
 
   @override
   void dispose() {
     _namaController.dispose();
-    _hargaController.dispose();
-    _stokController.dispose();
+    _kodeController.dispose();
+    _stokTotalController.dispose();
+    _namaSatuanController.dispose();
+    _hargaJualController.dispose();
+    _stokSatuanController.dispose();
     super.dispose();
   }
 
@@ -66,33 +79,36 @@ class _EditBarangScreenState extends State<EditBarangScreen> {
 
     try {
       final barangProvider = Provider.of<BarangProvider>(context, listen: false);
-      final kategoriRef = FirebaseFirestore.instance.collection('kategori').doc(_selectedKategoriId);
+      final barangSatuanProvider = Provider.of<BarangSatuanProvider>(context, listen: false);
 
-      if (widget.barang == null) {
-        // Add new item
-        final newBarang = Barang(
-          id: '', // Will be set by Firestore
-          namaBarang: _namaController.text.trim(),
-          harga: double.parse(_hargaController.text),
-          stok: int.parse(_stokController.text),
-          idKategori: kategoriRef,
-        );
-        final success = await barangProvider.addBarang(newBarang);
-        if (!success) {
-          throw Exception(barangProvider.errorMessage ?? 'Failed to add item');
-        }
-      } else {
-        // Update existing item
+      if (_isEditMode) {
+        // Update existing barang
         final updatedBarang = Barang(
           id: widget.barang!.id,
+          idKategori: _selectedKategoriId!,
+          kodeBarang: _kodeController.text.trim(),
           namaBarang: _namaController.text.trim(),
-          harga: double.parse(_hargaController.text),
-          stok: int.parse(_stokController.text),
-          idKategori: kategoriRef,
+          stokTotal: int.parse(_stokTotalController.text),
         );
         final success = await barangProvider.updateBarang(updatedBarang);
         if (!success) {
           throw Exception(barangProvider.errorMessage ?? 'Failed to update item');
+        }
+      } else {
+        // Add new barang
+        final success = await barangProvider.addBarang(
+          idKategori: _selectedKategoriId!,
+          namaBarang: _namaController.text.trim(),
+          stokTotal: int.parse(_stokTotalController.text),
+        );
+        if (!success) {
+          throw Exception(barangProvider.errorMessage ?? 'Failed to add item');
+        }
+        
+        // If we have barang_satuan data, add it too
+        if (_namaSatuanController.text.isNotEmpty && _hargaJualController.text.isNotEmpty) {
+          // Note: We would need the barang ID here, which requires refactoring the provider
+          // For now, barang_satuan will be added separately
         }
       }
 
@@ -231,16 +247,13 @@ class _EditBarangScreenState extends State<EditBarangScreen> {
                 const SizedBox(height: AppSpacing.lg),
 
                 _buildFormField(
-                  label: 'Price (\$)',
-                  controller: _hargaController,
-                  icon: Icons.attach_money,
-                  keyboardType: TextInputType.number,
+                  label: 'Product Code',
+                  controller: _kodeController,
+                  icon: Icons.qr_code,
+                  enabled: _isEditMode, // Code is auto-generated for new items
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter price';
-                    }
-                    if (double.tryParse(value) == null || double.parse(value) <= 0) {
-                      return 'Please enter a valid price';
+                    if (_isEditMode && (value == null || value.trim().isEmpty)) {
+                      return 'Please enter product code';
                     }
                     return null;
                   },
@@ -248,13 +261,13 @@ class _EditBarangScreenState extends State<EditBarangScreen> {
                 const SizedBox(height: AppSpacing.lg),
 
                 _buildFormField(
-                  label: 'Stock Quantity',
-                  controller: _stokController,
-                  icon: Icons.numbers,
+                  label: 'Total Stock',
+                  controller: _stokTotalController,
+                  icon: Icons.inventory,
                   keyboardType: TextInputType.number,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Please enter stock quantity';
+                      return 'Please enter total stock';
                     }
                     if (int.tryParse(value) == null || int.parse(value) < 0) {
                       return 'Please enter a valid stock quantity';
@@ -262,6 +275,10 @@ class _EditBarangScreenState extends State<EditBarangScreen> {
                     return null;
                   },
                 ),
+                const SizedBox(height: AppSpacing.lg),
+
+                // Barang Satuan Section (for new items)
+                if (!_isEditMode) ..._buildBarangSatuanSection(),
                 const SizedBox(height: AppSpacing.lg),
 
                 // Category Dropdown
@@ -303,6 +320,7 @@ class _EditBarangScreenState extends State<EditBarangScreen> {
     required IconData icon,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
+    bool enabled = true,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -320,6 +338,7 @@ class _EditBarangScreenState extends State<EditBarangScreen> {
           controller: controller,
           keyboardType: keyboardType,
           validator: validator,
+          enabled: enabled,
           decoration: InputDecoration(
             prefixIcon: Icon(icon, color: AppColors.primary),
             filled: true,
@@ -486,5 +505,90 @@ class _EditBarangScreenState extends State<EditBarangScreen> {
         ),
       ],
     );
+  }
+
+  List<Widget> _buildBarangSatuanSection() {
+    return [
+      const SizedBox(height: AppSpacing.lg),
+      Container(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.inventory_2_outlined, color: AppColors.primary),
+                const SizedBox(width: AppSpacing.sm),
+                const Text(
+                  'Initial Unit & Pricing',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            const Text(
+              'Add the first unit type and pricing for this product',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            _buildFormField(
+              label: 'Unit Name (e.g., Kg, Pcs, Box)',
+              controller: _namaSatuanController,
+              icon: Icons.straighten,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter unit name';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _buildFormField(
+              label: 'Selling Price',
+              controller: _hargaJualController,
+              icon: Icons.attach_money,
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter selling price';
+                }
+                if (double.tryParse(value) == null || double.parse(value) <= 0) {
+                  return 'Please enter a valid price';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _buildFormField(
+              label: 'Unit Stock',
+              controller: _stokSatuanController,
+              icon: Icons.inventory,
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter unit stock';
+                }
+                if (int.tryParse(value) == null || int.parse(value) < 0) {
+                  return 'Please enter a valid stock quantity';
+                }
+                return null;
+              },
+            ),
+          ],
+        ),
+      ),
+    ];
   }
 }

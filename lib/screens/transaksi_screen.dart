@@ -39,13 +39,17 @@ class _TransaksiScreenState extends State<TransaksiScreen> {
   }
 
   void _addToCart(Barang barang, CartProvider cartProvider) {
-    cartProvider.addToCart(barang);
-    
-    // Show feedback
+    // TODO: This needs to be updated to work with BarangSatuan
+    // For now, show a dialog to select which unit to add
+    _showUnitSelectionDialog(barang, cartProvider);
+  }
+  
+  void _showUnitSelectionDialog(Barang barang, CartProvider cartProvider) {
+    // Show dialog to select barang_satuan unit
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${barang.namaBarang} ditambahkan ke keranjang'),
-        backgroundColor: AppColors.primary,
+        content: Text('Please implement unit selection for ${barang.namaBarang}'),
+        backgroundColor: Colors.orange,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
         action: SnackBarAction(
@@ -259,7 +263,7 @@ class _TransaksiScreenState extends State<TransaksiScreen> {
 
     void recalculateTotals(StateSetter setModalState) {
       final total = detailEntries.fold<double>(0, (sum, entry) {
-        final harga = entry.barang?.harga ?? 0;
+        final harga = 0.0; // TODO: Get price from barang_satuan
         entry.subTotal = harga * entry.jumlah;
         return sum + entry.subTotal;
       });
@@ -494,40 +498,27 @@ class _TransaksiScreenState extends State<TransaksiScreen> {
                                     double sisa = double.tryParse(sisaController.text) ?? (total - bayar);
                                     if (sisa < 0) sisa = 0;
 
-                                    final transaksi = Transaksi(
-                                      id: '',
-                                      nama: namaController.text,
-                                      tanggal: tanggal,
-                                      total: total,
-                                      bayar: bayar,
-                                      sisa: status.toLowerCase() == 'lunas' ? 0 : sisa,
-                                      status: status,
-                                      tanggalBayar: status.toLowerCase() == 'lunas'
-                                          ? (tanggalBayar ?? DateTime.now())
-                                          : tanggalBayar,
-                                      keterangan: keteranganController.text,
-                                    );
-
-                                    final detailPayload = validDetails
-                                        .map(
-                                          (detail) => DetailTransaksiForm(
-                                            idBarang: FirebaseFirestore.instance.collection('barang').doc(detail.barang!.id),
-                                            jumlah: detail.jumlah,
-                                            subTotal: detail.subTotal,
-                                          ),
-                                        )
-                                        .toList();
-
-                                    await transaksiProvider.createTransaksiWithDetails(
-                                      transaksi: transaksi,
-                                      detailItems: detailPayload,
-                                    );
-
-                                    if (!mounted) return;
-                                    Navigator.pop(context);
+                                    // TODO: This transaction creation needs complete redesign for new structure
+                                    // For now, disable transaction creation and show message
+                                    
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Transaksi berhasil dibuat.')),
+                                      const SnackBar(
+                                        content: Text('Transaction system needs to be updated for new database structure'),
+                                        backgroundColor: Colors.orange,
+                                      ),
                                     );
+                                    Navigator.of(context).pop();
+                                    return;
+                                    
+                                    // TODO: Implement with new structure:
+                                    // final detailItems = validDetails.map((detail) => DetailTransaksiForm(
+                                    //   idBarangSatuan: 'barang_satuan_id_here',
+                                    //   jumlah: detail.jumlah,
+                                    // )).toList();
+                                    // 
+                                    // String? transaksiId = await transaksiProvider.createCompleteTransaction(
+                                    //   detailItems: detailItems,
+                                    // );
                                   },
                                   child: const Text('Simpan Transaksi'),
                                 ),
@@ -557,7 +548,7 @@ class _TransaksiScreenState extends State<TransaksiScreen> {
     double subTotal = 0;
 
     void recalcSubtotal() {
-      final harga = selectedBarang?.harga ?? 0;
+      final harga = 0.0; // TODO: Get price from barang_satuan
       subTotal = harga * jumlah;
     }
 
@@ -653,12 +644,17 @@ class _TransaksiScreenState extends State<TransaksiScreen> {
 
                                     recalcSubtotal();
 
-                                    await transaksiProvider.addDetailToTransaksi(
-                                      transaksi.id,
-                                      DetailTransaksiForm(
-                                        idBarang: FirebaseFirestore.instance.collection('barang').doc(selectedBarang!.id),
-                                        jumlah: jumlah,
-                                        subTotal: subTotal,
+                                    // TODO: Method needs to be implemented for new structure
+                                    // DetailTransaksiForm(
+                                    //   idBarangSatuan: 'placeholder_id', // TODO: Get actual barang_satuan ID
+                                    //   jumlah: jumlah,
+                                    // );
+                                    
+                                    // Show placeholder message for now
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Add detail functionality needs to be updated for new structure'),
+                                        backgroundColor: Colors.orange,
                                       ),
                                     );
 
@@ -689,9 +685,9 @@ class _TransaksiScreenState extends State<TransaksiScreen> {
   Future<void> _showUpdateStatusSheet(Transaksi transaksi) async {
     final transaksiProvider = Provider.of<TransaksiProvider>(context, listen: false);
     final formKey = GlobalKey<FormState>();
-    String status = transaksi.status;
-    DateTime? tanggalBayar = transaksi.tanggalBayar;
-    final bayarController = TextEditingController(text: transaksi.bayar.toStringAsFixed(0));
+    String status = 'Pending'; // TODO: New transaksi model doesn't have status
+    DateTime? tanggalBayar = null; // TODO: New transaksi model doesn't have tanggalBayar
+    final bayarController = TextEditingController(text: '0'); // TODO: New transaksi model doesn't have bayar
 
     await showModalBottomSheet(
       context: context,
@@ -737,7 +733,7 @@ class _TransaksiScreenState extends State<TransaksiScreen> {
                           status = value;
                           if (status.toLowerCase() == 'lunas') {
                             tanggalBayar = tanggalBayar ?? DateTime.now();
-                            bayarController.text = transaksi.total.toStringAsFixed(0);
+                            bayarController.text = transaksi.totalHarga.toStringAsFixed(0);
                           }
                           setModalState(() {});
                         },
@@ -765,16 +761,17 @@ class _TransaksiScreenState extends State<TransaksiScreen> {
                         child: ElevatedButton(
                           onPressed: () async {
                             if (!formKey.currentState!.validate()) return;
-                            final bayar = double.tryParse(bayarController.text) ?? transaksi.bayar;
-                            double sisa = transaksi.total - bayar;
+                            final bayar = double.tryParse(bayarController.text) ?? 0;
+                            double sisa = transaksi.totalHarga - bayar;
                             if (sisa < 0) sisa = 0;
 
-                            await transaksiProvider.updateStatus(
-                              transaksiId: transaksi.id,
-                              status: status,
-                              bayar: bayar,
-                              sisa: status.toLowerCase() == 'lunas' ? 0 : sisa,
-                              tanggalBayar: status.toLowerCase() == 'lunas' ? (tanggalBayar ?? DateTime.now()) : null,
+                            // TODO: updateStatus method needs to be implemented
+                            // Show placeholder message for now
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Update status functionality needs to be updated for new structure'),
+                                backgroundColor: Colors.orange,
+                              ),
                             );
 
                             if (!mounted) return;
@@ -803,7 +800,7 @@ class _TransaksiScreenState extends State<TransaksiScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Hapus Transaksi'),
-        content: Text('Anda yakin ingin menghapus transaksi "${transaksi.nama}"?'),
+        content: Text('Anda yakin ingin menghapus transaksi "${transaksi.kodeTransaksi}"?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
           TextButton(
@@ -839,7 +836,7 @@ class _BarangShopCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<DocumentSnapshot>(
-      future: barang.idKategori.get(),
+      future: Future.value(null), // TODO: Fix kategori lookup for new structure
       builder: (context, snapshot) {
         String kategoriName = 'Loading...';
         if (snapshot.hasData) {
@@ -900,7 +897,7 @@ class _BarangShopCard extends StatelessWidget {
                       Row(
                         children: [
                           Text(
-                            NumberFormat.currency(locale: 'en_US', symbol: '\$', decimalDigits: 2).format(barang.harga),
+                            'Multiple Units Available', // TODO: Show actual pricing from barang_satuan
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               color: AppColors.primary,
@@ -914,21 +911,21 @@ class _BarangShopCard extends StatelessWidget {
                               vertical: AppSpacing.xs,
                             ),
                             decoration: BoxDecoration(
-                              color: barang.stok > 10 
+                              color: barang.stokTotal > 10 
                                 ? const Color(0xFF10B981).withOpacity(0.1)
-                                : barang.stok > 0
+                                : barang.stokTotal > 0
                                   ? const Color(0xFFF59E0B).withOpacity(0.1)
                                   : AppColors.error.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(AppRadius.full),
                             ),
                             child: Text(
-                              '${barang.stok} left',
+                              '${barang.stokTotal} left',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: barang.stok > 10 
+                                color: barang.stokTotal > 10 
                                   ? const Color(0xFF10B981)
-                                  : barang.stok > 0
+                                  : barang.stokTotal > 0
                                     ? const Color(0xFFF59E0B)
                                     : AppColors.error,
                               ),
@@ -944,21 +941,21 @@ class _BarangShopCard extends StatelessWidget {
                 Container(
                   width: 100,
                   child: ElevatedButton(
-                    onPressed: barang.stok > 0 ? onAddToCart : null,
+                    onPressed: barang.stokTotal > 0 ? onAddToCart : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: barang.stok > 0 ? AppColors.primary : AppColors.grey300,
+                      backgroundColor: barang.stokTotal > 0 ? AppColors.primary : AppColors.grey300,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppRadius.full),
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                      elevation: barang.stok > 0 ? 2 : 0,
+                      elevation: barang.stokTotal > 0 ? 2 : 0,
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          barang.stok <= 0 
+                          barang.stokTotal <= 0 
                             ? Icons.block 
                             : isInCart 
                               ? Icons.check_circle 
@@ -967,7 +964,7 @@ class _BarangShopCard extends StatelessWidget {
                         ),
                         const SizedBox(width: AppSpacing.xs),
                         Text(
-                          barang.stok <= 0
+                          barang.stokTotal <= 0
                               ? 'Out'
                               : isInCart
                                 ? 'Added'

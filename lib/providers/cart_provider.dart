@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import '../model/barang_satuan.dart';
 import '../model/barang.dart';
 
 class CartItem {
-  final Barang barang;
+  final BarangSatuan barangSatuan;
+  final Barang? barang; // Optional for display purposes
   int quantity;
-  double get subtotal => barang.harga * quantity;
+  double get subtotal => barangSatuan.hargaJual * quantity;
 
   CartItem({
-    required this.barang,
+    required this.barangSatuan,
+    this.barang,
     this.quantity = 1,
   });
 }
@@ -30,28 +33,28 @@ class CartProvider with ChangeNotifier {
     return _cartItems.fold(0.0, (total, item) => total + item.subtotal);
   }
   
-  bool isInCart(String barangId) {
-    return _cartItems.any((item) => item.barang.id == barangId);
+  bool isInCart(String barangSatuanId) {
+    return _cartItems.any((item) => item.barangSatuan.id == barangSatuanId);
   }
   
-  void addToCart(Barang barang) {
-    final existingIndex = _cartItems.indexWhere((item) => item.barang.id == barang.id);
+  void addToCart(BarangSatuan barangSatuan, {Barang? barang}) {
+    final existingIndex = _cartItems.indexWhere((item) => item.barangSatuan.id == barangSatuan.id);
     
     if (existingIndex >= 0) {
       _cartItems[existingIndex].quantity += 1;
     } else {
-      _cartItems.add(CartItem(barang: barang));
+      _cartItems.add(CartItem(barangSatuan: barangSatuan, barang: barang));
     }
     notifyListeners();
   }
   
-  void removeFromCart(String barangId) {
-    _cartItems.removeWhere((item) => item.barang.id == barangId);
+  void removeFromCart(String barangSatuanId) {
+    _cartItems.removeWhere((item) => item.barangSatuan.id == barangSatuanId);
     notifyListeners();
   }
   
-  void updateQuantity(String barangId, int quantity) {
-    final existingIndex = _cartItems.indexWhere((item) => item.barang.id == barangId);
+  void updateQuantity(String barangSatuanId, int quantity) {
+    final existingIndex = _cartItems.indexWhere((item) => item.barangSatuan.id == barangSatuanId);
     
     if (existingIndex >= 0) {
       if (quantity > 0) {
