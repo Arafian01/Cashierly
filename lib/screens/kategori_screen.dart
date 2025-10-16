@@ -190,7 +190,8 @@ class _KategoriScreenState extends State<KategoriScreen> {
   Future<void> _showKategoriSheet(BuildContext context, {Kategori? kategori}) async {
     final kategoriProvider = Provider.of<KategoriProvider>(context, listen: false);
     final formKey = GlobalKey<FormState>();
-    final controller = TextEditingController(text: kategori?.namaKategori ?? '');
+    final namaController = TextEditingController(text: kategori?.namaKategori ?? '');
+    final deskripsiController = TextEditingController(text: kategori?.deskripsi ?? '');
 
     await showModalBottomSheet(
       context: context,
@@ -226,9 +227,18 @@ class _KategoriScreenState extends State<KategoriScreen> {
                   ),
                   const SizedBox(height: 20),
                   TextFormField(
-                    controller: controller,
+                    controller: namaController,
                     decoration: const InputDecoration(labelText: 'Nama Kategori'),
                     validator: (val) => (val == null || val.isEmpty) ? 'Nama kategori wajib diisi' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: deskripsiController,
+                    decoration: const InputDecoration(
+                      labelText: 'Deskripsi (Opsional)',
+                      hintText: 'Masukkan deskripsi kategori...',
+                    ),
+                    maxLines: 3,
                   ),
                   const SizedBox(height: 24),
                   SizedBox(
@@ -241,14 +251,14 @@ class _KategoriScreenState extends State<KategoriScreen> {
                         
                         if (kategori == null) {
                           success = await kategoriProvider.addKategori(
-                            namaKategori: controller.text.trim(),
-                            deskripsi: null, // Add deskripsi field to form if needed
+                            namaKategori: namaController.text.trim(),
+                            deskripsi: deskripsiController.text.trim().isEmpty ? null : deskripsiController.text.trim(),
                           );
                         } else {
                           final updatedKategori = Kategori(
                             id: kategori!.id, 
-                            namaKategori: controller.text.trim(),
-                            deskripsi: kategori!.deskripsi,
+                            namaKategori: namaController.text.trim(),
+                            deskripsi: deskripsiController.text.trim().isEmpty ? null : deskripsiController.text.trim(),
                           );
                           success = await kategoriProvider.updateKategori(updatedKategori);
                         }
@@ -373,15 +383,32 @@ class _KategoriCard extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: Text(
-                    kategori.namaKategori,
-                    style: const TextStyle(
-                      fontSize: 16, 
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.onSurface,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        kategori.namaKategori,
+                        style: const TextStyle(
+                          fontSize: 16, 
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.onSurface,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (kategori.deskripsi != null && kategori.deskripsi!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          kategori.deskripsi!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ],

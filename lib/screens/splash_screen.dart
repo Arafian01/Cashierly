@@ -114,14 +114,14 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                       ),
                       child: const Icon(
-                        Icons.savings,
+                        Icons.store,
                         size: 60,
                         color: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 32),
                     const Text(
-                      'Flutter\nSavings Bank',
+                      'Toko\nKelontong',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 32,
@@ -132,7 +132,7 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'Your trusted financial partner',
+                      'Sistem Inventory Terpercaya',
                       style: TextStyle(
                         fontSize: 16,
                         color: Colors.white70,

@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+
 import '../model/barang.dart';
 import '../model/kategori.dart';
 import '../providers/barang_provider.dart';
 import '../providers/kategori_provider.dart';
+import '../services/firestore_service.dart';
 import '../widgets/app_theme.dart';
 import '../widgets/search_header.dart';
-import '../widgets/advanced_filter_modal.dart';
 import 'edit_barang_screen.dart';
-import 'package:intl/intl.dart';
+import 'manage_units_screen.dart';
 
 class BarangScreen extends StatefulWidget {
   const BarangScreen({super.key});
@@ -21,21 +23,11 @@ class _BarangScreenState extends State<BarangScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   String? _selectedKategoriFilter;
-  SortOption _selectedSort = SortOption.none;
-  StockFilter _selectedStockFilter = StockFilter.all;
-  final _currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-
-  Future<Kategori?> _getKategoriById(String kategoriId) async {
-    // Use provider to get kategori stream and find by ID
-    try {
-      final kategoriProvider = Provider.of<KategoriProvider>(context, listen: false);
-      final kategoriStream = kategoriProvider.getKategori();
-      final kategoriList = await kategoriStream.first;
-      return kategoriList.firstWhere((k) => k.id == kategoriId);
-    } catch (e) {
-      return null;
-    }
-  }
+  final _currencyFormatter = NumberFormat.currency(
+    locale: 'id_ID',
+    symbol: 'Rp ',
+    decimalDigits: 0,
+  );
 
   @override
   void dispose() {
@@ -49,7 +41,8 @@ class _BarangScreenState extends State<BarangScreen> {
     // Filter by search query
     if (_searchQuery.isNotEmpty) {
       filtered = filtered.where((barang) => 
-        barang.namaBarang.toLowerCase().contains(_searchQuery.toLowerCase())
+        barang.namaBarang.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+        barang.kodeBarang.toLowerCase().contains(_searchQuery.toLowerCase())
       ).toList();
     }
     
@@ -58,50 +51,6 @@ class _BarangScreenState extends State<BarangScreen> {
       filtered = filtered.where((barang) => 
         barang.idKategori == _selectedKategoriFilter
       ).toList();
-    }
-    
-    // Filter by stock status
-    switch (_selectedStockFilter) {
-      case StockFilter.inStock:
-        // TODO: Implement stock filter using barang_satuan
-        // filtered = filtered.where((barang) => barang.stokTotal > 0).toList();
-        break;
-      case StockFilter.lowStock:
-        // TODO: Implement low stock filter using barang_satuan
-        // filtered = filtered.where((barang) => barang.stokTotal <= 10 && barang.stokTotal > 0).toList();
-        break;
-      case StockFilter.outOfStock:
-        // TODO: Implement out of stock filter using barang_satuan
-        // filtered = filtered.where((barang) => barang.stokTotal == 0).toList();
-        break;
-      case StockFilter.all:
-        break;
-    }
-    
-    // Apply sorting
-    switch (_selectedSort) {
-      case SortOption.priceAsc:
-        // TODO: Implement price sorting using barang_satuan
-        // filtered.sort((a, b) => a.harga.compareTo(b.harga));
-        break;
-      case SortOption.priceDesc:
-        // TODO: Implement price sorting using barang_satuan
-        // filtered.sort((a, b) => b.harga.compareTo(a.harga));
-        break;
-      case SortOption.nameAsc:
-        filtered.sort((a, b) => a.namaBarang.compareTo(b.namaBarang));
-        break;
-      case SortOption.nameDesc:
-        filtered.sort((a, b) => b.namaBarang.compareTo(a.namaBarang));
-        break;
-      case SortOption.stockAsc:
-        filtered.sort((a, b) => a.stokTotal.compareTo(b.stokTotal));
-        break;
-      case SortOption.stockDesc:
-        filtered.sort((a, b) => b.stokTotal.compareTo(a.stokTotal));
-        break;
-      case SortOption.none:
-        break;
     }
     
     return filtered;
@@ -113,22 +62,21 @@ class _BarangScreenState extends State<BarangScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (context) => StreamBuilder<List<Kategori>>(
         stream: kategoriProvider.getKategori(),
         builder: (context, snapshot) {
           final categories = snapshot.data ?? [];
-          return AdvancedFilterModal(
+          return _FilterModal(
             categories: categories,
             selectedCategoryId: _selectedKategoriFilter,
-            selectedSort: _selectedSort,
-            selectedStockFilter: _selectedStockFilter,
-            onFiltersApplied: (filters) {
+            onFiltersApplied: (categoryId) {
               setState(() {
-                _selectedKategoriFilter = filters['categoryId'];
-                _selectedSort = filters['sortOption'];
-                _selectedStockFilter = filters['stockFilter'];
+                _selectedKategoriFilter = categoryId;
               });
+              Navigator.pop(context);
             },
           );
         },
@@ -142,20 +90,14 @@ class _BarangScreenState extends State<BarangScreen> {
       builder: (context, barangProvider, child) {
         return Scaffold(
           appBar: AppBar(
-            title: const Row(
-              children: [
-                Icon(Icons.payments, color: Colors.white),
-                SizedBox(width: 8),
-                Text('My Expenses'),
-              ],
-            ),
+            title: const Text('Kelola Barang'),
           ),
           body: SafeArea(
             child: Column(
               children: [
-                // Modern Search Header
+                // Search Header
                 SearchHeader(
-                  title: 'Expense History',
+                  title: 'Daftar Barang',
                   searchController: _searchController,
                   onSearchChanged: (value) {
                     setState(() {
@@ -163,10 +105,9 @@ class _BarangScreenState extends State<BarangScreen> {
                     });
                   },
                   onFilterPressed: _showFilterModal,
-                  hasActiveFilter: _selectedKategoriFilter != null || 
-                                 _selectedSort != SortOption.none || 
-                                 _selectedStockFilter != StockFilter.all,
+                  hasActiveFilter: _selectedKategoriFilter != null,
                 ),
+                
                 // Error message display
                 if (barangProvider.errorMessage != null)
                   Container(
@@ -195,6 +136,7 @@ class _BarangScreenState extends State<BarangScreen> {
                       ],
                     ),
                   ),
+                
                 Expanded(
                   child: StreamBuilder<List<Barang>>(
                     stream: barangProvider.getBarang(),
@@ -203,40 +145,71 @@ class _BarangScreenState extends State<BarangScreen> {
                         return const Center(child: CircularProgressIndicator());
                       }
 
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                              const SizedBox(height: 16),
+                              Text('Terjadi kesalahan: ${snapshot.error}'),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: () => barangProvider.clearError(),
+                                child: const Text('Coba Lagi'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
                       final barangList = snapshot.data ?? [];
                       final filteredList = _filterBarang(barangList);
                       
                       if (barangList.isEmpty) {
-                        return _buildEmptyState();
+                        return _EmptyState(onAdd: () => _navigateToAdd());
                       }
                       
                       if (filteredList.isEmpty && _searchQuery.isNotEmpty) {
-                        return _buildNoSearchResults();
+                        return _NoSearchResults(searchQuery: _searchQuery);
                       }
 
-                      return ListView.builder(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        itemCount: filteredList.length + 1, // +1 for bottom spacing
-                        itemBuilder: (context, index) {
-                          if (index == filteredList.length) {
-                            return const SizedBox(height: 80); // Bottom spacing for FAB
-                          }
-                          final barang = filteredList[index];
-                          return _BarangCard(
-                            barang: barang,
-                            onEdit: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => EditBarangScreen(barang: barang),
+                      return ListView(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Daftar Barang (${filteredList.length})',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.onSurface,
                                 ),
-                              );
-                            },
+                              ),
+                              if (_selectedKategoriFilter != null)
+                                TextButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedKategoriFilter = null;
+                                    });
+                                  },
+                                  child: const Text('Hapus Filter'),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          ...filteredList.map((barang) => _BarangCard(
+                            barang: barang,
+                            onTap: () => _navigateToDetail(barang),
+                            onEdit: () => _navigateToEdit(barang),
                             onDelete: () => _confirmDelete(context, barang),
+                            onManageUnits: () => _navigateToManageUnits(barang),
                             currencyFormatter: _currencyFormatter,
-                            getKategoriById: _getKategoriById,
-                          );
-                        },
+                          )),
+                          const SizedBox(height: 80), // Space for FAB
+                        ],
                       );
                     },
                   ),
@@ -245,83 +218,61 @@ class _BarangScreenState extends State<BarangScreen> {
             ),
           ),
           floatingActionButton: FloatingActionButton.extended(
-            onPressed: barangProvider.isLoading ? null : () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const EditBarangScreen(),
-                ),
-              );
-            },
+            onPressed: barangProvider.isLoading ? null : _navigateToAdd,
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             icon: barangProvider.isLoading
                 ? const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
                   )
                 : const Icon(Icons.add),
-            label: Text(barangProvider.isLoading ? 'Processing...' : 'Add Expense'),
+            label: Text(barangProvider.isLoading ? 'Memproses...' : 'Tambah Barang'),
           ),
         );
       },
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.payments_outlined, size: 96, color: AppColors.grey400),
-          const SizedBox(height: AppSpacing.lg),
-          const Text(
-            'No expenses yet', 
-            style: TextStyle(
-              fontSize: 20, 
-              fontWeight: FontWeight.w600,
-              color: AppColors.onSurface,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          const Text(
-            'Start tracking your expenses by adding your first expense.', 
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.onSurfaceVariant),
-          ),
-        ],
+  void _navigateToAdd() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const EditBarangScreen(),
       ),
     );
   }
 
-  Widget _buildNoSearchResults() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.search_off, size: 96, color: AppColors.grey400),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            'Tidak ada hasil untuk "$_searchQuery"',
-            style: const TextStyle(
-              fontSize: 18, 
-              fontWeight: FontWeight.w600,
-              color: AppColors.onSurface,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          const Text(
-            'Coba kata kunci lain untuk mencari barang.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.onSurfaceVariant),
-          ),
-        ],
+  void _navigateToEdit(Barang barang) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditBarangScreen(barang: barang),
       ),
     );
   }
 
+  void _navigateToDetail(Barang barang) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _BarangDetailScreen(barang: barang),
+      ),
+    );
+  }
+
+  void _navigateToManageUnits(Barang barang) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ManageUnitsScreen(barang: barang),
+      ),
+    );
+  }
 
   Future<void> _confirmDelete(BuildContext context, Barang barang) async {
     final barangProvider = Provider.of<BarangProvider>(context, listen: false);
@@ -333,14 +284,14 @@ class _BarangScreenState extends State<BarangScreen> {
           children: [
             Icon(Icons.warning, color: AppColors.error),
             SizedBox(width: AppSpacing.sm),
-            Text('Delete Item'),
+            Text('Hapus Barang'),
           ],
         ),
-        content: Text('Are you sure you want to delete "${barang.namaBarang}"? This action cannot be undone.'),
+        content: Text('Yakin ingin menghapus "${barang.namaBarang}"? Tindakan ini tidak dapat dibatalkan dan akan menghapus semua satuan barang.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: const Text('Batal'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -348,7 +299,7 @@ class _BarangScreenState extends State<BarangScreen> {
               backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Delete'),
+            child: const Text('Hapus'),
           ),
         ],
       ),
@@ -361,31 +312,15 @@ class _BarangScreenState extends State<BarangScreen> {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: AppSpacing.sm),
-                Text('${barang.namaBarang} deleted successfully'),
-              ],
-            ),
-            backgroundColor: const Color(0xFF10B981),
-            behavior: SnackBarBehavior.floating,
+            content: Text('${barang.namaBarang} berhasil dihapus'),
+            backgroundColor: Colors.green,
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error, color: Colors.white),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(barangProvider.errorMessage ?? 'Failed to delete item'),
-                ),
-              ],
-            ),
+            content: Text(barangProvider.errorMessage ?? 'Gagal menghapus barang'),
             backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -395,17 +330,19 @@ class _BarangScreenState extends State<BarangScreen> {
 
 class _BarangCard extends StatelessWidget {
   final Barang barang;
+  final VoidCallback onTap;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onManageUnits;
   final NumberFormat currencyFormatter;
-  final Future<Kategori?> Function(String) getKategoriById;
 
   const _BarangCard({
     required this.barang,
+    required this.onTap,
     required this.onEdit,
     required this.onDelete,
+    required this.onManageUnits,
     required this.currencyFormatter,
-    required this.getKategoriById,
   });
 
   @override
@@ -416,12 +353,13 @@ class _BarangCard extends StatelessWidget {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.xl),
         boxShadow: AppShadows.light,
+        border: Border.all(color: AppColors.grey200.withOpacity(0.5)),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(AppRadius.xl),
-          onTap: onEdit,
+          onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
@@ -436,7 +374,7 @@ class _BarangCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(AppRadius.md),
                       ),
                       child: const Icon(
-                        Icons.monetization_on, 
+                        Icons.inventory_2,
                         color: AppColors.primary,
                         size: 20,
                       ),
@@ -449,101 +387,111 @@ class _BarangCard extends StatelessWidget {
                           Text(
                             barang.namaBarang,
                             style: const TextStyle(
-                              fontSize: 18, 
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: AppColors.onSurface,
                             ),
                           ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.sm,
-                              vertical: AppSpacing.xs,
-                            ),
-                            decoration: BoxDecoration(
-                              color: barang.stokTotal > 10 
-                                ? const Color(0xFF10B981).withOpacity(0.1)
-                                : barang.stokTotal > 0
-                                  ? const Color(0xFFF59E0B).withOpacity(0.1)
-                                  : AppColors.error.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(AppRadius.sm),
-                            ),
-                            child: Text(
-                              '${barang.stokTotal} unit',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: barang.stokTotal > 10 
-                                  ? const Color(0xFF10B981)
-                                  : barang.stokTotal > 0
-                                    ? const Color(0xFFF59E0B)
-                                    : AppColors.error,
-                              ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Kode: ${barang.kodeBarang}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.onSurfaceVariant,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    // Delete button
-                    IconButton(
-                      onPressed: onDelete,
-                      icon: const Icon(
-                        Icons.delete_outline,
-                        color: AppColors.error,
-                        size: 20,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                        vertical: AppSpacing.xs,
                       ),
-                      style: IconButton.styleFrom(
-                        backgroundColor: AppColors.error.withOpacity(0.1),
-                        padding: const EdgeInsets.all(8),
-                        minimumSize: const Size(36, 36),
+                      decoration: BoxDecoration(
+                        color: barang.stokTotal > 0 
+                            ? Colors.green.withOpacity(0.1)
+                            : Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(AppRadius.full),
+                      ),
+                      child: Text(
+                        'Stok: ${barang.stokTotal}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: barang.stokTotal > 0 ? Colors.green : Colors.red,
+                        ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
+                
+                // Category info
                 FutureBuilder<Kategori?>(
-                  future: getKategoriById(barang.idKategori),
+                  future: FirestoreService.getKategoriById(barang.idKategori),
                   builder: (context, snapshot) {
-                    String kategoriName = 'Loading...';
-                    if (snapshot.hasData && snapshot.data != null) {
-                      kategoriName = snapshot.data!.namaKategori;
-                    } else if (snapshot.hasError) {
-                      kategoriName = 'Unknown';
-                    }
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    final kategori = snapshot.data;
+                    return Row(
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.label_outline, size: 16, color: AppColors.onSurfaceVariant),
-                            const SizedBox(width: AppSpacing.xs),
-                            Text(
-                              kategoriName,
-                              style: const TextStyle(
-                                color: AppColors.onSurfaceVariant,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Row(
-                          children: [
-                            const Icon(Icons.attach_money, size: 16, color: AppColors.onSurfaceVariant),
-                            const SizedBox(width: AppSpacing.xs),
-                            Text(
-                              'Multiple Units', // TODO: Show actual pricing from barang_satuan
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.onSurface,
-                              ),
-                            ),
-                          ],
+                        const Icon(Icons.category, size: 14, color: AppColors.onSurfaceVariant),
+                        const SizedBox(width: 4),
+                        Text(
+                          kategori?.namaKategori ?? 'Loading...',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.onSurfaceVariant,
+                          ),
                         ),
                       ],
                     );
                   },
+                ),
+                
+                const SizedBox(height: AppSpacing.md),
+                
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: onManageUnits,
+                        icon: const Icon(Icons.view_list, size: 16),
+                        label: const Text('Satuan'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: onEdit,
+                        icon: const Icon(Icons.edit_outlined, size: 16),
+                        label: const Text('Edit'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.orange,
+                          side: const BorderSide(color: Colors.orange),
+                          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    OutlinedButton(
+                      onPressed: onDelete,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error,
+                        side: const BorderSide(color: AppColors.error),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.sm,
+                        ),
+                      ),
+                      child: const Icon(Icons.delete_outline, size: 16),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -553,3 +501,163 @@ class _BarangCard extends StatelessWidget {
     );
   }
 }
+
+class _FilterModal extends StatelessWidget {
+  final List<Kategori> categories;
+  final String? selectedCategoryId;
+  final Function(String?) onFiltersApplied;
+
+  const _FilterModal({
+    required this.categories,
+    required this.selectedCategoryId,
+    required this.onFiltersApplied,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 48,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Filter Barang',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 20),
+          
+          const Text(
+            'Kategori',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 12),
+          
+          ListTile(
+            title: const Text('Semua Kategori'),
+            leading: Radio<String?>(
+              value: null,
+              groupValue: selectedCategoryId,
+              onChanged: (value) => onFiltersApplied(value),
+            ),
+          ),
+          
+          ...categories.map((kategori) => ListTile(
+            title: Text(kategori.namaKategori),
+            leading: Radio<String?>(
+              value: kategori.id,
+              groupValue: selectedCategoryId,
+              onChanged: (value) => onFiltersApplied(value),
+            ),
+          )),
+          
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  final VoidCallback onAdd;
+
+  const _EmptyState({required this.onAdd});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.inventory_2_outlined, size: 96, color: AppColors.primary.withOpacity(0.5)),
+          const SizedBox(height: AppSpacing.lg),
+          const Text(
+            'Belum ada barang',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: AppColors.onSurface,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const Text(
+            'Tambahkan barang untuk mulai mengelola inventory.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.onSurfaceVariant),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          ElevatedButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add),
+            label: const Text('Tambah Barang'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoSearchResults extends StatelessWidget {
+  final String searchQuery;
+
+  const _NoSearchResults({required this.searchQuery});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 96, color: AppColors.grey400),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            'Tidak ada hasil untuk "$searchQuery"',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.onSurface,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const Text(
+            'Coba kata kunci lain atau hapus filter untuk melihat semua barang.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Placeholder screens - these will be implemented later
+class _BarangDetailScreen extends StatelessWidget {
+  final Barang barang;
+
+  const _BarangDetailScreen({required this.barang});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(barang.namaBarang)),
+      body: const Center(child: Text('Detail barang akan diimplementasikan')),
+    );
+  }
+}
+
