@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -28,10 +30,44 @@ class _BarangScreenState extends State<BarangScreen> {
     symbol: 'Rp ',
     decimalDigits: 0,
   );
+  late final ScrollController _scrollController;
+  Timer? _searchDebounce;
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) return;
+    final provider = context.read<BarangProvider>();
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      provider.loadMoreBarang();
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      setState(() {
+        _searchQuery = value;
+      });
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_handleScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<BarangProvider>().loadInitialBarang();
+    });
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
+    _searchDebounce?.cancel();
     super.dispose();
   }
 
@@ -100,9 +136,7 @@ class _BarangScreenState extends State<BarangScreen> {
                   title: 'Daftar Barang',
                   searchController: _searchController,
                   onSearchChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                    });
+                    _onSearchChanged(value);
                   },
                   onFilterPressed: _showFilterModal,
                   hasActiveFilter: _selectedKategoriFilter != null,
@@ -138,24 +172,23 @@ class _BarangScreenState extends State<BarangScreen> {
                   ),
                 
                 Expanded(
-                  child: StreamBuilder<List<Barang>>(
-                    stream: barangProvider.getBarang(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
+                  child: Consumer<BarangProvider>(
+                    builder: (context, provider, _) {
+                      if (provider.isLoading && provider.barangList.isEmpty) {
                         return const Center(child: CircularProgressIndicator());
                       }
 
-                      if (snapshot.hasError) {
+                      if (provider.errorMessage != null && provider.barangList.isEmpty) {
                         return Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               const Icon(Icons.error_outline, size: 64, color: Colors.red),
                               const SizedBox(height: 16),
-                              Text('Terjadi kesalahan: ${snapshot.error}'),
+                              Text(provider.errorMessage!),
                               const SizedBox(height: 16),
                               ElevatedButton(
-                                onPressed: () => barangProvider.clearError(),
+                                onPressed: () => provider.loadInitialBarang(),
                                 child: const Text('Coba Lagi'),
                               ),
                             ],
@@ -163,53 +196,45 @@ class _BarangScreenState extends State<BarangScreen> {
                         );
                       }
 
-                      final barangList = snapshot.data ?? [];
+                      final barangList = provider.barangList;
                       final filteredList = _filterBarang(barangList);
-                      
+
                       if (barangList.isEmpty) {
                         return _EmptyState(onAdd: () => _navigateToAdd());
                       }
-                      
+
                       if (filteredList.isEmpty && _searchQuery.isNotEmpty) {
                         return _NoSearchResults(searchQuery: _searchQuery);
                       }
 
-                      return ListView(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Daftar Barang (${filteredList.length})',
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.onSurface,
-                                ),
-                              ),
-                              if (_selectedKategoriFilter != null)
-                                TextButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _selectedKategoriFilter = null;
-                                    });
-                                  },
-                                  child: const Text('Hapus Filter'),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          ...filteredList.map((barang) => _BarangCard(
-                            barang: barang,
-                            onTap: () => _navigateToDetail(barang),
-                            onEdit: () => _navigateToEdit(barang),
-                            onDelete: () => _confirmDelete(context, barang),
-                            onManageUnits: () => _navigateToManageUnits(barang),
-                            currencyFormatter: _currencyFormatter,
-                          )),
-                          const SizedBox(height: 80), // Space for FAB
-                        ],
+                      final isCompactWidth = MediaQuery.of(context).size.width < 360;
+                      final horizontalPadding = isCompactWidth ? AppSpacing.sm : AppSpacing.md;
+
+                      return RefreshIndicator(
+                        onRefresh: () => provider.loadInitialBarang(),
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                          itemCount: filteredList.length + (provider.hasMore ? 1 : 0),
+                          itemBuilder: (context, index) {
+                            if (index >= filteredList.length) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                                child: Center(child: CircularProgressIndicator()),
+                              );
+                            }
+
+                            final barang = filteredList[index];
+                            return _BarangCard(
+                              barang: barang,
+                              onTap: () => _navigateToDetail(barang),
+                              onEdit: () => _navigateToEdit(barang),
+                              onDelete: () => _confirmDelete(context, barang),
+                              onManageUnits: () => _navigateToManageUnits(barang),
+                              currencyFormatter: _currencyFormatter,
+                            );
+                          },
+                        ),
                       );
                     },
                   ),
@@ -238,22 +263,26 @@ class _BarangScreenState extends State<BarangScreen> {
     );
   }
 
-  void _navigateToAdd() {
-    Navigator.push(
+  Future<void> _navigateToAdd() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => const EditBarangScreen(),
       ),
     );
+    if (!mounted) return;
+    context.read<BarangProvider>().loadInitialBarang();
   }
 
-  void _navigateToEdit(Barang barang) {
-    Navigator.push(
+  Future<void> _navigateToEdit(Barang barang) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => EditBarangScreen(barang: barang),
       ),
     );
+    if (!mounted) return;
+    context.read<BarangProvider>().loadInitialBarang();
   }
 
   void _navigateToDetail(Barang barang) {
@@ -265,13 +294,15 @@ class _BarangScreenState extends State<BarangScreen> {
     );
   }
 
-  void _navigateToManageUnits(Barang barang) {
-    Navigator.push(
+  Future<void> _navigateToManageUnits(Barang barang) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ManageUnitsScreen(barang: barang),
       ),
     );
+    if (!mounted) return;
+    context.read<BarangProvider>().loadInitialBarang();
   }
 
   Future<void> _confirmDelete(BuildContext context, Barang barang) async {

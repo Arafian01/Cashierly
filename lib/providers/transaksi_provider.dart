@@ -20,6 +20,15 @@ class TransaksiProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+  bool _isFetchingMore = false;
+  bool get isFetchingMore => _isFetchingMore;
+
+  final List<Transaksi> _transaksi = [];
+  List<Transaksi> get transaksi => List.unmodifiable(_transaksi);
+
+  DocumentSnapshot? _lastTransaksiDocument;
+  bool _hasMore = true;
+  bool get hasMore => _hasMore;
 
   void _setError(String? error) {
     _errorMessage = error;
@@ -37,6 +46,51 @@ class TransaksiProvider with ChangeNotifier {
     } catch (e) {
       _setError('Gagal memuat data transaksi');
       return Stream.value(<Transaksi>[]);
+    }
+  }
+
+  Future<void> loadInitialTransaksi({int limit = 20}) async {
+    if (_isLoading) return;
+    try {
+      _setError(null);
+      _setLoading(true);
+      _transaksi.clear();
+      _lastTransaksiDocument = null;
+      _hasMore = true;
+
+      final result = await FirestoreService.fetchTransaksiPage(limit: limit);
+      _transaksi.addAll(result.items);
+      _lastTransaksiDocument = result.lastDocument;
+      _hasMore = result.hasMore;
+    } on FirebaseException catch (e) {
+      _setError('Gagal memuat transaksi: ${e.message}');
+    } catch (e) {
+      _setError('Terjadi kesalahan tidak terduga: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> loadMoreTransaksi({int limit = 20}) async {
+    if (_isFetchingMore || !_hasMore || _isLoading) return;
+    _isFetchingMore = true;
+    notifyListeners();
+
+    try {
+      final result = await FirestoreService.fetchTransaksiPage(
+        startAfter: _lastTransaksiDocument,
+        limit: limit,
+      );
+      _transaksi.addAll(result.items);
+      _lastTransaksiDocument = result.lastDocument;
+      _hasMore = result.hasMore;
+    } on FirebaseException catch (e) {
+      _setError('Gagal memuat transaksi berikutnya: ${e.message}');
+    } catch (e) {
+      _setError('Terjadi kesalahan tidak terduga: $e');
+    } finally {
+      _isFetchingMore = false;
+      notifyListeners();
     }
   }
 

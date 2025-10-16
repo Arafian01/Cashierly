@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../model/transaksi.dart';
+import '../providers/transaksi_provider.dart';
 import '../services/firestore_service.dart';
 import '../widgets/app_theme.dart';
 import '../widgets/search_header.dart';
@@ -22,10 +24,23 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     decimalDigits: 0,
   );
   final _dateFormatter = DateFormat('dd MMM yyyy, HH:mm', 'id_ID');
+  late final ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_handleScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<TransaksiProvider>().loadInitialTransaksi();
+    });
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -35,6 +50,15 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     return transaksiList.where((transaksi) => 
       transaksi.kodeTransaksi.toLowerCase().contains(_searchQuery.toLowerCase())
     ).toList();
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) return;
+    final provider = context.read<TransaksiProvider>();
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      provider.loadMoreTransaksi();
+    }
   }
 
   @override
@@ -59,24 +83,23 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
 
             // Transaction List
             Expanded(
-              child: StreamBuilder<List<Transaksi>>(
-                stream: FirestoreService.getTransaksiStream(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
+              child: Consumer<TransaksiProvider>(
+                builder: (context, transaksiProvider, _) {
+                  if (transaksiProvider.isLoading && transaksiProvider.transaksi.isEmpty) {
                     return const Center(child: CircularProgressIndicator());
                   }
 
-                  if (snapshot.hasError) {
+                  if (transaksiProvider.errorMessage != null && transaksiProvider.transaksi.isEmpty) {
                     return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Icon(Icons.error_outline, size: 64, color: Colors.red),
                           const SizedBox(height: 16),
-                          Text('Terjadi kesalahan: ${snapshot.error}'),
+                          Text(transaksiProvider.errorMessage!),
                           const SizedBox(height: 16),
                           ElevatedButton(
-                            onPressed: () => setState(() {}),
+                            onPressed: () => transaksiProvider.loadInitialTransaksi(),
                             child: const Text('Coba Lagi'),
                           ),
                         ],
@@ -84,7 +107,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                     );
                   }
 
-                  final transaksiList = snapshot.data ?? [];
+                  final transaksiList = transaksiProvider.transaksi;
                   final filteredList = _filterTransaksi(transaksiList);
 
                   if (transaksiList.isEmpty) {
@@ -95,41 +118,29 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                     return _NoSearchResults(searchQuery: _searchQuery);
                   }
 
-                  return ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Total Transaksi (${filteredList.length})',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.onSurface,
-                            ),
-                          ),
-                          if (_searchQuery.isNotEmpty)
-                            TextButton(
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() {
-                                  _searchQuery = '';
-                                });
-                              },
-                              child: const Text('Hapus Filter'),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      ...filteredList.map((transaksi) => _TransactionCard(
-                        transaksi: transaksi,
-                        currencyFormatter: _currencyFormatter,
-                        dateFormatter: _dateFormatter,
-                        onTap: () => _showTransactionDetail(transaksi),
-                      )),
-                      const SizedBox(height: 80), // Space for potential FAB
-                    ],
+                  return RefreshIndicator(
+                    onRefresh: () => transaksiProvider.loadInitialTransaksi(),
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                      itemCount: filteredList.length + (transaksiProvider.hasMore ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index >= filteredList.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+
+                        final transaksi = filteredList[index];
+                        return _TransactionCard(
+                          transaksi: transaksi,
+                          currencyFormatter: _currencyFormatter,
+                          dateFormatter: _dateFormatter,
+                          onTap: () => _showTransactionDetail(transaksi),
+                        );
+                      },
+                    ),
                   );
                 },
               ),

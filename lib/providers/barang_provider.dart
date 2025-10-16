@@ -8,6 +8,15 @@ class BarangProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+  bool _isFetchingMore = false;
+  bool get isFetchingMore => _isFetchingMore;
+
+  final List<Barang> _barangList = [];
+  List<Barang> get barangList => List.unmodifiable(_barangList);
+
+  DocumentSnapshot? _lastBarangDocument;
+  bool _hasMore = true;
+  bool get hasMore => _hasMore;
 
   void _setError(String? error) {
     _errorMessage = error;
@@ -25,6 +34,51 @@ class BarangProvider with ChangeNotifier {
     } catch (e) {
       _setError('Gagal memuat data barang');
       return Stream.value(<Barang>[]);
+    }
+  }
+
+  Future<void> loadInitialBarang({int limit = 20}) async {
+    if (_isLoading) return;
+    try {
+      _setError(null);
+      _setLoading(true);
+      _barangList.clear();
+      _lastBarangDocument = null;
+      _hasMore = true;
+
+      final result = await FirestoreService.fetchBarangPage(limit: limit);
+      _barangList.addAll(result.items);
+      _lastBarangDocument = result.lastDocument;
+      _hasMore = result.hasMore;
+    } on FirebaseException catch (e) {
+      _setError('Gagal memuat barang: ${e.message}');
+    } catch (e) {
+      _setError('Terjadi kesalahan tidak terduga: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> loadMoreBarang({int limit = 20}) async {
+    if (_isFetchingMore || !_hasMore || _isLoading) return;
+    _isFetchingMore = true;
+    notifyListeners();
+
+    try {
+      final result = await FirestoreService.fetchBarangPage(
+        startAfter: _lastBarangDocument,
+        limit: limit,
+      );
+      _barangList.addAll(result.items);
+      _lastBarangDocument = result.lastDocument;
+      _hasMore = result.hasMore;
+    } on FirebaseException catch (e) {
+      _setError('Gagal memuat barang berikutnya: ${e.message}');
+    } catch (e) {
+      _setError('Terjadi kesalahan tidak terduga: $e');
+    } finally {
+      _isFetchingMore = false;
+      notifyListeners();
     }
   }
 

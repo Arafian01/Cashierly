@@ -16,24 +16,13 @@ import 'screens/splash_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase
-  await Firebase.initializeApp(
+  final firebaseInitialization = Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  final localeInitialization = initializeDateFormatting('id_ID', null);
 
-  // Initialize locale data for Indonesian formatting
-  await initializeDateFormatting('id_ID', null);
+  await Future.wait([firebaseInitialization, localeInitialization]);
   
-  // Configure Firestore settings
-  try {
-    FirebaseFirestore.instance.settings = const Settings(
-      persistenceEnabled: true,
-      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-    );
-  } catch (e) {
-    // Firestore settings can only be set once, ignore subsequent calls
-    debugPrint('Firestore settings already configured: $e');
-  }
   runApp(
     MultiProvider(
       providers: [
@@ -46,6 +35,17 @@ void main() async {
       child: const MyApp(),
     ),
   );
+
+  Future.microtask(() {
+    try {
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
+    } catch (e) {
+      debugPrint('Firestore settings already configured: $e');
+    }
+  });
 }
 
 class MyApp extends StatelessWidget {

@@ -5,6 +5,18 @@ import '../model/barang_satuan.dart';
 import '../model/transaksi.dart';
 import '../model/detail_transaksi.dart';
 
+class PaginatedResult<T> {
+  PaginatedResult({
+    required this.items,
+    required this.lastDocument,
+  });
+
+  final List<T> items;
+  final DocumentSnapshot? lastDocument;
+
+  bool get hasMore => lastDocument != null;
+}
+
 class FirestoreService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
   
@@ -112,10 +124,29 @@ class FirestoreService {
   static Future<void> deleteBarangSatuan(String id) async {
     await _barangSatuanRef.doc(id).delete();
   }
-  
+
   // Update stok satuan when transaction occurs
   static Future<void> updateStokSatuan(String idBarangSatuan, int newStok) async {
     await _barangSatuanRef.doc(idBarangSatuan).update({'stok_satuan': newStok});
+  }
+
+  static Future<PaginatedResult<Barang>> fetchBarangPage({
+    DocumentSnapshot? startAfter,
+    int limit = 20,
+  }) async {
+    Query query = _barangRef.orderBy('nama_barang').limit(limit);
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+
+    QuerySnapshot snapshot = await query.get();
+    final items = snapshot.docs.map((doc) => Barang.fromSnapshot(doc)).toList();
+    final DocumentSnapshot? lastDocument = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
+
+    return PaginatedResult<Barang>(
+      items: items,
+      lastDocument: lastDocument,
+    );
   }
   
   // TRANSAKSI CRUD Operations
@@ -178,6 +209,25 @@ class FirestoreService {
   
   static Future<void> deleteDetailTransaksi(String id) async {
     await _detailTransaksiRef.doc(id).delete();
+  }
+
+  static Future<PaginatedResult<Transaksi>> fetchTransaksiPage({
+    DocumentSnapshot? startAfter,
+    int limit = 20,
+  }) async {
+    Query query = _transaksiRef.orderBy('tanggal_transaksi', descending: true).limit(limit);
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+
+    QuerySnapshot snapshot = await query.get();
+    final items = snapshot.docs.map((doc) => Transaksi.fromSnapshot(doc)).toList();
+    final DocumentSnapshot? lastDocument = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
+
+    return PaginatedResult<Transaksi>(
+      items: items,
+      lastDocument: lastDocument,
+    );
   }
   
   // COMPLEX OPERATIONS
