@@ -13,14 +13,17 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  UserRole _selectedRole = UserRole.kasir;
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
+    _nameController.addListener(() => setState(() {}));
     _emailController.addListener(() => setState(() {}));
     _passwordController.addListener(() => setState(() {}));
     _confirmPasswordController.addListener(() => setState(() {}));
@@ -28,10 +31,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  String? _validateName(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Nama wajib diisi';
+    }
+    if (value.length < 2) {
+      return 'Nama minimal 2 karakter';
+    }
+    return null;
   }
 
   String? _validateEmail(String? value) {
@@ -65,9 +79,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   bool _isFormValid() {
-    return _emailController.text.isNotEmpty && 
+    return _nameController.text.isNotEmpty &&
+           _emailController.text.isNotEmpty && 
            _passwordController.text.isNotEmpty &&
            _confirmPasswordController.text.isNotEmpty &&
+           _validateName(_nameController.text) == null &&
            _validateEmail(_emailController.text) == null &&
            _validatePassword(_passwordController.text) == null &&
            _validateConfirmPassword(_confirmPasswordController.text) == null;
@@ -84,6 +100,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final success = await authProvider.register(
         _emailController.text,
         _passwordController.text,
+        _nameController.text,
+        _selectedRole,
       );
       
       if (success && mounted) {
@@ -211,7 +229,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   decoration: BoxDecoration(
                                     color: AppColors.errorLight,
                                     borderRadius: BorderRadius.circular(AppRadius.lg),
-                                    border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                                    border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
                                   ),
                                   child: Row(
                                     children: [
@@ -228,6 +246,53 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ),
                                 const SizedBox(height: AppSpacing.lg),
                               ],
+
+                              // Name field
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: AppColors.grey50,
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                                child: TextFormField(
+                                  controller: _nameController,
+                                  validator: _validateName,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Nama Lengkap',
+                                    prefixIcon: Icon(Icons.person, color: AppColors.primary),
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.lg),
+
+                              // Role selector
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: AppColors.grey50,
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                                child: DropdownButtonFormField<UserRole>(
+                                  value: _selectedRole,
+                                  decoration: const InputDecoration(
+                                    prefixIcon: Icon(Icons.work, color: AppColors.primary),
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                                  ),
+                                  items: UserRole.values.map((UserRole role) {
+                                    return DropdownMenuItem<UserRole>(
+                                      value: role,
+                                      child: Text(role == UserRole.admin ? 'Admin' : 'Kasir'),
+                                    );
+                                  }).toList(),
+                                  onChanged: (UserRole? newValue) {
+                                    setState(() {
+                                      _selectedRole = newValue ?? UserRole.kasir;
+                                    });
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.lg),
 
                               // Email field
                               Container(

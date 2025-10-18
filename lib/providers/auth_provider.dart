@@ -1,16 +1,32 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+
+enum UserRole { admin, kasir }
 
 class AuthProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  
   User? get user => _auth.currentUser;
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _auth.currentUser != null;
+  
+  UserRole? _userRole;
+  UserRole? get userRole => _userRole;
+  String? _userName;
+  String? get userName => _userName;
 
   AuthProvider() {
     // Listen to auth state changes
-    _auth.authStateChanges().listen((User? user) {
+    _auth.authStateChanges().listen((User? user) async {
+      if (user != null) {
+        await _loadUserProfile(user.uid);
+      } else {
+        _userRole = null;
+        _userName = null;
+      }
       notifyListeners();
     });
   }
@@ -20,10 +36,39 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> register(String email, String password) async {
+  Future<void> _loadUserProfile(String uid) async {
+    try {
+      DocumentSnapshot userDoc = await _firestore.collection('users').doc(uid).get();
+      if (userDoc.exists) {
+        final data = userDoc.data() as Map<String, dynamic>;
+        _userName = data['name'] ?? '';
+        String roleString = data['role'] ?? 'kasir';
+        _userRole = roleString == 'admin' ? UserRole.admin : UserRole.kasir;
+      }
+    } catch (e) {
+      print('Error loading user profile: $e');
+    }
+  }
+
+  Future<bool> register(String email, String password, String name, UserRole role) async {
     try {
       _setError(null);
-      await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email, 
+        password: password
+      );
+      
+      // Create user profile in Firestore
+      await _firestore.collection('users').doc(userCredential.user!.uid).set({
+        'name': name,
+        'email': email,
+        'role': role == UserRole.admin ? 'admin' : 'kasir',
+        'created_at': FieldValue.serverTimestamp(),
+      });
+      
+      // Load the profile immediately
+      await _loadUserProfile(userCredential.user!.uid);
+      
       return true;
     } on FirebaseAuthException catch (e) {
       switch (e.code) {
@@ -49,7 +94,14 @@ class AuthProvider with ChangeNotifier {
   Future<bool> login(String email, String password) async {
     try {
       _setError(null);
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: email, 
+        password: password
+      );
+      
+      // Load user profile after successful login
+      await _loadUserProfile(userCredential.user!.uid);
+      
       return true;
     } on FirebaseAuthException catch (e) {
       switch (e.code) {

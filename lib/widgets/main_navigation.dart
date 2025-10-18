@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../screens/home_screen.dart';
-import '../screens/barang_screen.dart';
-import '../screens/transaksi_screen.dart';
-import '../screens/laporan_screen.dart';
-import '../screens/akun_screen.dart';
+import '../pages/home_page.dart';
+import '../pages/barang_page.dart';
+import '../pages/transaksi_page.dart';
+import '../pages/laporan_page.dart';
+import '../pages/akun_page.dart';
 import 'app_bottom_navigation.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -23,11 +23,11 @@ class _MainNavigationState extends State<MainNavigation> {
   late PageController _pageController;
 
   final List<Widget> _pages = [
-    const HomeScreen(),
-    const BarangScreen(),
-    const TransaksiScreen(),
-    const LaporanScreen(),
-    const AkunScreen(),
+    const HomePage(),
+    const BarangPage(),
+    const TransaksiPage(),
+    const LaporanPage(),
+    const AkunPage(),
   ];
 
   @override
