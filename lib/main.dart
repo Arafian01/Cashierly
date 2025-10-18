@@ -2,8 +2,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'providers/auth_provider.dart';
 import 'providers/kategori_provider.dart';
 import 'providers/barang_provider.dart';
@@ -58,21 +58,16 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final baseTextTheme = GoogleFonts.poppinsTextTheme(
-      ThemeData(brightness: Brightness.light).textTheme,
-    );
-
     final colorScheme = ColorScheme.fromSeed(
       seedColor: AppColors.primary,
       brightness: Brightness.light,
-      primary: AppColors.primary,
-      secondary: AppColors.grey50,
-      background: AppColors.background,
       surface: AppColors.surface,
-      onPrimary: Colors.white,
-      onSecondary: AppColors.onSurface,
+      background: AppColors.background,
       error: AppColors.error,
-      onError: Colors.white,
+      onError: AppColors.textLight,
+      onPrimary: AppColors.textLight,
+      onSurface: AppColors.textPrimary,
+      onSurfaceVariant: AppColors.textSecondary,
     );
 
     return MaterialApp(
@@ -81,17 +76,13 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: colorScheme,
-        textTheme: baseTextTheme.apply(
-          bodyColor: AppColors.onSurface,
-          displayColor: AppColors.onSurface,
-        ),
-        scaffoldBackgroundColor: colorScheme.surface,
+        textTheme: GoogleFonts.poppinsTextTheme(Theme.of(context).textTheme),
+        scaffoldBackgroundColor: colorScheme.background,
         appBarTheme: AppBarTheme(
           backgroundColor: colorScheme.primary,
           foregroundColor: colorScheme.onPrimary,
           elevation: 0,
           centerTitle: true,
-          iconTheme: IconThemeData(color: colorScheme.onPrimary),
           titleTextStyle: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w600,
@@ -102,12 +93,9 @@ class MyApp extends StatelessWidget {
           style: ElevatedButton.styleFrom(
             backgroundColor: colorScheme.primary,
             foregroundColor: colorScheme.onPrimary,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
             elevation: 2,
-            shadowColor: colorScheme.primary.withValues(alpha: 0.24),
             textStyle: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -122,21 +110,23 @@ class MyApp extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: colorScheme.secondary.withValues(alpha: 0.4),
+          fillColor: colorScheme.surfaceVariant,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            borderSide: BorderSide(color: colorScheme.secondary.withValues(alpha: 0.8)),
+            borderSide: BorderSide(
+              color: colorScheme.outline.withValues(alpha: 0.4),
+            ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            borderSide: BorderSide(color: colorScheme.secondary.withValues(alpha: 0.5)),
+            borderSide: BorderSide(
+              color: colorScheme.outline.withValues(alpha: 0.4),
+            ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -148,32 +138,14 @@ class MyApp extends StatelessWidget {
           ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           labelStyle: const TextStyle(fontSize: 14),
-          hintStyle: TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
+          hintStyle: TextStyle(fontSize: 14, color: colorScheme.onSurfaceVariant),
         ),
         cardTheme: CardTheme(
           color: colorScheme.surface,
-          elevation: 4,
-          shadowColor: Colors.black.withValues(alpha: 0.08),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.xl),
-          ),
-          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        ),
-        bottomNavigationBarTheme: BottomNavigationBarThemeData(
-          backgroundColor: colorScheme.surface,
-          selectedItemColor: colorScheme.primary,
-          unselectedItemColor: AppColors.onSurfaceVariant,
-          showUnselectedLabels: true,
-          type: BottomNavigationBarType.fixed,
-          elevation: 8,
-        ),
-        floatingActionButtonTheme: FloatingActionButtonThemeData(
-          backgroundColor: colorScheme.primary,
-          foregroundColor: colorScheme.onPrimary,
           elevation: 3,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.full),
-          ),
+          shadowColor: colorScheme.shadow.withValues(alpha: 0.1),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
+          margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
         ),
       ),
       home: const SplashScreen(),

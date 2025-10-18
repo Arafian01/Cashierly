@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../screens/home_screen.dart';
 import '../screens/barang_screen.dart';
 import '../screens/transaksi_screen.dart';
+import '../screens/laporan_screen.dart';
+import '../screens/akun_screen.dart';
 import 'app_bottom_navigation.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -24,6 +26,8 @@ class _MainNavigationState extends State<MainNavigation> {
     const HomeScreen(),
     const BarangScreen(),
     const TransaksiScreen(),
+    const LaporanScreen(),
+    const AkunScreen(),
   ];
 
   @override

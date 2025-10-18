@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'app_theme.dart';
 
 enum BottomNavItem {
-  dashboard,
+  home,
   barang,
   transaksi,
+  laporan,
+  akun,
 }
 
 class AppBottomNavigation extends StatelessWidget {
@@ -24,7 +26,7 @@ class AppBottomNavigation extends StatelessWidget {
         color: AppColors.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),
@@ -40,22 +42,34 @@ class AppBottomNavigation extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _NavItem(
-                icon: Icons.dashboard_rounded,
-                label: 'Dashboard',
-                isActive: currentItem == BottomNavItem.dashboard,
-                onTap: () => onItemTapped(BottomNavItem.dashboard),
+                icon: Icons.home,
+                label: 'Home',
+                isActive: currentItem == BottomNavItem.home,
+                onTap: () => onItemTapped(BottomNavItem.home),
               ),
               _NavItem(
-                icon: Icons.inventory_2_rounded,
+                icon: Icons.inventory_2,
                 label: 'Barang',
                 isActive: currentItem == BottomNavItem.barang,
                 onTap: () => onItemTapped(BottomNavItem.barang),
               ),
               _NavItem(
-                icon: Icons.receipt_long_rounded,
+                icon: Icons.monetization_on,
                 label: 'Transaksi',
                 isActive: currentItem == BottomNavItem.transaksi,
                 onTap: () => onItemTapped(BottomNavItem.transaksi),
+              ),
+              _NavItem(
+                icon: Icons.trending_up,
+                label: 'Laporan',
+                isActive: currentItem == BottomNavItem.laporan,
+                onTap: () => onItemTapped(BottomNavItem.laporan),
+              ),
+              _NavItem(
+                icon: Icons.person,
+                label: 'Akun',
+                isActive: currentItem == BottomNavItem.akun,
+                onTap: () => onItemTapped(BottomNavItem.akun),
               ),
             ],
           ),
@@ -94,7 +108,7 @@ class _NavItem extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               color: isActive
-                  ? AppColors.primary.withOpacity(0.1)
+                  ? AppColors.primary.withValues(alpha: 0.1)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
