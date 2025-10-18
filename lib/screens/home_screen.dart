@@ -51,12 +51,9 @@ class HomeScreen extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: AppColors.primary,
                   borderRadius: BorderRadius.circular(AppRadius.xl),
+                  boxShadow: AppShadows.medium,
                 ),
                 child: Row(
                   children: [
@@ -67,7 +64,7 @@ class HomeScreen extends StatelessWidget {
                           Text(
                             'Selamat Datang di',
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                             ),
                           ),
                           Text(
@@ -81,7 +78,7 @@ class HomeScreen extends StatelessWidget {
                           Text(
                             'Kelola barang dan transaksi toko dengan mudah.',
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                             ),
                           ),
                         ],
@@ -91,9 +88,9 @@ class HomeScreen extends StatelessWidget {
                       width: 60,
                       height: 60,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: AppColors.secondary.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(30),
-                        border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 2),
                       ),
                       child: const Icon(
                         Icons.store,
@@ -110,7 +107,7 @@ class HomeScreen extends StatelessWidget {
               Text(
                 'Ringkasan Data',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.onSurface,
                 ),
               ),
@@ -124,7 +121,7 @@ class HomeScreen extends StatelessWidget {
               Text(
                 'Menu Utama',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.onSurface,
                 ),
               ),
@@ -154,26 +151,30 @@ class _StatisticsSection extends StatelessWidget {
       children: [
         _StatCard(
           title: 'Total Kategori',
-          icon: Icons.category,
-          color: Colors.blue,
+          icon: Icons.category_rounded,
+          color: AppColors.secondary,
+          accent: AppColors.primaryLight,
           future: _getTotalKategori(),
         ),
         _StatCard(
           title: 'Total Barang',
-          icon: Icons.inventory,
-          color: Colors.green,
+          icon: Icons.inventory_2_rounded,
+          color: AppColors.surface,
+          accent: AppColors.primary,
           future: _getTotalBarang(),
         ),
         _StatCard(
           title: 'Total Transaksi',
-          icon: Icons.receipt,
-          color: Colors.orange,
+          icon: Icons.receipt_long_rounded,
+          color: AppColors.surface,
+          accent: AppColors.primary,
           future: _getTotalTransaksi(),
         ),
         _StatCard(
           title: 'Pendapatan Hari Ini',
-          icon: Icons.attach_money,
-          color: Colors.purple,
+          icon: Icons.attach_money_rounded,
+          color: AppColors.surface,
+          accent: AppColors.primaryDark,
           future: _getPendapatanHariIni(),
           isPrice: true,
         ),
@@ -219,6 +220,7 @@ class _StatCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final Color color;
+  final Color accent;
   final Future<dynamic> future;
   final bool isPrice;
 
@@ -226,6 +228,7 @@ class _StatCard extends StatelessWidget {
     required this.title,
     required this.icon,
     required this.color,
+    required this.accent,
     required this.future,
     this.isPrice = false,
   });
@@ -235,10 +238,10 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: color,
         borderRadius: BorderRadius.circular(AppRadius.xl),
         boxShadow: AppShadows.light,
-        border: Border.all(color: AppColors.grey200.withOpacity(0.5)),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,12 +249,12 @@ class _StatCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: accent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Icon(
               icon,
-              color: color,
+              color: accent,
               size: 24,
             ),
           ),
@@ -269,12 +272,12 @@ class _StatCard extends StatelessWidget {
             future: future,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Text(
-                  'Loading...',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.onSurface,
+                return Text(
+                  'Memuat...'.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.onSurfaceVariant,
                   ),
                 );
               }
@@ -321,8 +324,9 @@ class _QuickActionsSection extends StatelessWidget {
       children: [
         _QuickActionCard(
           title: 'Kelola Kategori',
-          icon: Icons.category,
-          color: Colors.blue,
+          icon: Icons.category_rounded,
+          color: AppColors.secondary,
+          accent: AppColors.primary,
           onTap: () {
             Navigator.push(
               context,
@@ -332,8 +336,9 @@ class _QuickActionsSection extends StatelessWidget {
         ),
         _QuickActionCard(
           title: 'Kelola Barang',
-          icon: Icons.inventory,
-          color: Colors.green,
+          icon: Icons.inventory_2_rounded,
+          color: AppColors.surface,
+          accent: AppColors.primary,
           onTap: () {
             Navigator.push(
               context,
@@ -343,8 +348,9 @@ class _QuickActionsSection extends StatelessWidget {
         ),
         _QuickActionCard(
           title: 'Transaksi Baru',
-          icon: Icons.add_shopping_cart,
-          color: Colors.orange,
+          icon: Icons.add_shopping_cart_rounded,
+          color: AppColors.surface,
+          accent: AppColors.primaryLight,
           onTap: () {
             Navigator.push(
               context,
@@ -354,8 +360,9 @@ class _QuickActionsSection extends StatelessWidget {
         ),
         _QuickActionCard(
           title: 'Riwayat Transaksi',
-          icon: Icons.history,
-          color: Colors.purple,
+          icon: Icons.history_rounded,
+          color: AppColors.surface,
+          accent: AppColors.primaryDark,
           onTap: () {
             Navigator.push(
               context,
@@ -372,12 +379,14 @@ class _QuickActionCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final Color color;
+  final Color accent;
   final VoidCallback onTap;
 
   const _QuickActionCard({
     required this.title,
     required this.icon,
     required this.color,
+    required this.accent,
     required this.onTap,
   });
 
@@ -391,10 +400,10 @@ class _QuickActionCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: color,
             borderRadius: BorderRadius.circular(AppRadius.xl),
             boxShadow: AppShadows.light,
-            border: Border.all(color: AppColors.grey200.withOpacity(0.5)),
+            border: Border.all(color: AppColors.secondary.withValues(alpha: 0.4)),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -402,12 +411,12 @@ class _QuickActionCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppRadius.full),
                 ),
                 child: Icon(
                   icon,
-                  color: color,
+                  color: accent,
                   size: 32,
                 ),
               ),
